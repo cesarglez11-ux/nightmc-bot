@@ -11,6 +11,9 @@ import discord
 from discord import ui
 from discord.ext import commands
 import asyncio, datetime, io, os
+from dotenv import load_dotenv
+
+load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -648,29 +651,32 @@ class TicketLauncher(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @ui.button(label="Soporte",    style=discord.ButtonStyle.secondary, emoji="🛠️", custom_id="btn_soporte",     row=0)
-    async def btn_soporte(self, i, b):     await i.response.send_modal(GeneralModal())
-
-    @ui.button(label="Reportar",   style=discord.ButtonStyle.danger,    emoji="🚫", custom_id="btn_reporte",     row=0)
-    async def btn_reporte(self, i, b):     await i.response.send_modal(ReporteModal())
-
-    @ui.button(label="Apelar",     style=discord.ButtonStyle.primary,   emoji="⚖️", custom_id="btn_apelacion",   row=0)
-    async def btn_apelacion(self, i, b):   await i.response.send_modal(ApelacionModal())
-
-    @ui.button(label="Pagos",      style=discord.ButtonStyle.success,   emoji="💰", custom_id="btn_pagos",       row=1)
-    async def btn_pagos(self, i, b):       await i.response.send_modal(PagosTiendaModal())
-
-    @ui.button(label="Juego",      style=discord.ButtonStyle.primary,   emoji="🎮", custom_id="btn_juego",       row=1)
-    async def btn_juego(self, i, b):       await i.response.send_modal(JuegoModal())
-
-    @ui.button(label="Staff",      style=discord.ButtonStyle.secondary, emoji="📋", custom_id="btn_postulacion", row=1)
-    async def btn_postulacion(self, i, b): await i.response.send_modal(PostulacionModal())
-
-    @ui.button(label="Alianza",    style=discord.ButtonStyle.secondary, emoji="🤝", custom_id="btn_alianza",     row=2)
-    async def btn_alianza(self, i, b):     await i.response.send_modal(AlianzaModal())
-
-    @ui.button(label="Eventos",    style=discord.ButtonStyle.secondary, emoji="🎉", custom_id="btn_evento",      row=2)
-    async def btn_evento(self, i, b):      await i.response.send_modal(EventoModal())
+    @ui.select(
+        custom_id="main_sel",
+        placeholder="✦  ¿En qué podemos ayudarte hoy?",
+        options=[
+            discord.SelectOption(label="Soporte General",     value="soporte",      emoji="🛠️", description="Dudas y ayuda general"),
+            discord.SelectOption(label="Reportes",            value="reporte",      emoji="🚫", description="Reportar jugadores o hacks"),
+            discord.SelectOption(label="Apelaciones",         value="apelacion",    emoji="⚖️", description="Apelar bans, mutes y sanciones"),
+            discord.SelectOption(label="Pagos Tienda",        value="pagos_tienda", emoji="💰", description="Problemas con compras o rangos"),
+            discord.SelectOption(label="Soporte de Juego",    value="juego",        emoji="🎮", description="Bugs in-game y glitches"),
+            discord.SelectOption(label="Postulaciones Staff", value="postulacion",  emoji="📋", description="Aplicar para ser staff"),
+            discord.SelectOption(label="Alianzas",            value="alianza",      emoji="🤝", description="Propuestas de colaboración"),
+            discord.SelectOption(label="Eventos",             value="evento",       emoji="🎉", description="Premios no recibidos o participación"),
+        ]
+    )
+    async def select_callback(self, interaction: discord.Interaction, select: ui.Select):
+        modales = {
+            "soporte":      GeneralModal(),
+            "reporte":      ReporteModal(),
+            "apelacion":    ApelacionModal(),
+            "pagos_tienda": PagosTiendaModal(),
+            "juego":        JuegoModal(),
+            "postulacion":  PostulacionModal(),
+            "alianza":      AlianzaModal(),
+            "evento":       EventoModal(),
+        }
+        await interaction.response.send_modal(modales[select.values[0]])
 
 # ╔══════════════════════════════════════════════════════════════╗
 #   ⚡  SLASH COMMANDS
