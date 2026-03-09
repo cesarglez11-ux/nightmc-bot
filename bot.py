@@ -30,7 +30,7 @@ CAT_SOPORTE      = "🛠️ SOPORTE"
 CAT_REPORTE      = "🚫 REPORTES"
 CAT_APELACION    = "⚖️ APELACIONES"
 CAT_PAGOS        = "💰 Pagos Tienda"
-CAT_JUEGO        = "🎮 Soporte de Juego"
+CAT_INGAME        = "🎮 Soporte de InGame"
 CAT_POSTULACION  = "📋 Postulaciones Staff"
 CAT_ALIANZA      = "🤝 Alianzas"
 CAT_EVENTO       = "🎉 Eventos"
@@ -42,7 +42,7 @@ CATEGORIAS_TICKET = {
     "reporte":      CAT_REPORTE,
     "apelacion":    CAT_APELACION,
     "pagos_tienda": CAT_PAGOS,
-    "juego":        CAT_JUEGO,
+    "ingame":        CAT_INGAME,
     "postulacion":  CAT_POSTULACION,
     "alianza":      CAT_ALIANZA,
     "evento":       CAT_EVENTO,
@@ -52,7 +52,7 @@ ROLES_TICKET = {
     "reporte":      ("Low staff",    True),
     "apelacion":    ("Medium Staff", True),
     "pagos_tienda": ("Head staff",   False),
-    "juego":        ("Low staff",    True),
+    "ingame":        ("Low staff",    True),
     "postulacion":  ("Medium Staff", True),
     "alianza":      ("Head staff",   False),
     "evento":       ("Low staff",    True),
