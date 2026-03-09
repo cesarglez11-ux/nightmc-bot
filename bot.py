@@ -1028,32 +1028,49 @@ async def specifictag_role(interaction: discord.Interaction, rol: discord.Role):
     await enviar_log(guild, log_e)
 
 def _build_help(guild):
-    e = discord.Embed(title="📋  Comandos — NightMc Tickets", color=COLOR_BLUE)
-    e.set_author(name="NightMc Network", icon_url=guild.icon.url if guild.icon else None)
-    e.description = "Todos los comandos funcionan con `/` **y** con `!` indistintamente.\n" + SEP
-    e.add_field(name="🎫  Tickets", value=(
-        "`/claim` `!claim` — Reclamar el ticket\n"
-        "`/close` `!close` — Cerrar el ticket\n"
-        "`/transcript` `!transcript` — Generar transcript"
+    e = discord.Embed(color=COLOR_BLUE)
+    e.set_author(name="NightMc Network  ✦  Centro de Comandos",
+                 icon_url=guild.icon.url if guild.icon else None)
+    e.title = "📋  Guía de Comandos — NightMc Tickets"
+    e.description = (
+        "Todos los comandos funcionan con `/` **y** con `!` indistintamente.\n"
+        f"{SEP}\n"
+        "🟢 = Cualquier usuario  ·  🔵 = Staff  ·  🟠 = High Staff  ·  🔴 = Head staff\n"
+        f"{SEP}"
+    )
+    e.add_field(name="🎫  Gestión de Tickets  🔵", value=(
+        "> `claim` — Reclamar y tomar control del ticket\n"
+        "> `close` — Cerrar y eliminar el ticket\n"
+        "> `transcript` — Generar transcript del historial"
     ), inline=False)
-    e.add_field(name="👥  Usuarios", value=(
-        "`/add @usuario` — Añadir al ticket\n"
-        "`/remove @usuario` — Eliminar del ticket"
+    e.add_field(name="👥  Usuarios en Ticket  🔵", value=(
+        "> `add @usuario` — Añadir un usuario al ticket\n"
+        "> `remove @usuario` — Eliminar un usuario del ticket"
     ), inline=False)
-    e.add_field(name="⚙️  Canal", value=(
-        "`/rename <nombre>` — Renombrar canal\n"
-        "`/slowmode [seg]` — Modo lento (0 = off)"
+    e.add_field(name="⚙️  Canal  🔵", value=(
+        "> `rename <nombre>` — Renombrar el canal del ticket\n"
+        "> `slowmode [seg]` — Activar modo lento *(0 = desactivar)*"
     ), inline=False)
-    e.add_field(name="🔄  Transferir", value=(
-        "`/transfer` — Derivar a Rol Discord\n"
-        "`/specifictag_staff @staff` — Asignar a 1 staff\n"
-        "`/specifictag_role @rol` — Asignar a un rol"
+    e.add_field(name="🔄  Transferencias  🟠", value=(
+        "> `transfer` — Derivar ticket a otro equipo de staff\n"
+        "> `specifictag_staff @staff` — Asignar ticket a un staff específico\n"
+        "> `specifictag_role @rol` — Asignar ticket a un rol específico"
     ), inline=False)
-    e.add_field(name="🛠️  Admin", value=(
-        "`!setup` — Publicar panel de soporte\n"
-        "`!sync` — Registrar slash commands"
+    e.add_field(name="🌐  Información  🟢", value=(
+        "> `ip` — Ver IPs y modalidades del servidor\n"
+        "> `help` — Mostrar este menú de comandos"
     ), inline=False)
-    e.set_footer(text=FOOTER)
+    e.add_field(name="🔐  Administración  🔴", value=(
+        "> `!setup` — Publicar el panel de tickets en un canal\n"
+        "> `!sync` — Registrar los slash commands en el servidor\n"
+        "> ⚠️  *Estos comandos requieren permiso de* ***Administrador***"
+    ), inline=False)
+    e.add_field(name=SEP, value=(
+        "> 💡  Si un comando no responde, intenta con el prefijo `!`\n"
+        "> 📩  Para soporte técnico del bot contacta al **Head staff**"
+    ), inline=False)
+    e.set_image(url=BANNER_URL)
+    e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
     return e
 
 def _build_ip_embed():
