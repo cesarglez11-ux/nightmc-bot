@@ -76,7 +76,7 @@ COLOR_OK     = 0x57f287
 COLOR_DANGER = 0xed4245
 COLOR_WARN   = 0xfee75c
 COLOR_BLUE   = 0x5865f2
-FOOTER       = "NightMc.me"
+FOOTER       = "© Powered by NightMC"
 SEP          = "──────────────────────────────"
 
 def _footer(e, guild):
@@ -179,7 +179,7 @@ def embed_ticket_postulacion(guild, user, rol_tag, campos):
     e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
     e.title = "📋  Postulación Staff — NightMC Network"
     e.description = (
-        f"Buenas {user.mention}. Tu postulación será evaluada por {rol_tag}.\n"
+        f"Buenas {user.mention}. Tu situación será revisada por {rol_tag}.\n"
         f"Revisaremos tu solicitud con atención. Sé paciente."
     )
     e.add_field(name=SEP, value="\u200b", inline=False)
@@ -187,7 +187,7 @@ def embed_ticket_postulacion(guild, user, rol_tag, campos):
     e.add_field(name="🎮  Nick", value=f"```{campos.get('Nick','—')}```", inline=True)
     e.add_field(name="💬  Duda", value=f"```{campos.get('Duda','—')}```", inline=False)
     e.add_field(name=SEP, value=(
-        "> ⚠️  Las postulaciones falsas o con datos incorrectos serán rechazadas.\n"
+        "> ⚠️  Si abres el ticket sin motivo, seras sancionado.\n"
         "> ⏳  El proceso de evaluación puede tomar varios días.\n"
         "> 🙏  Gracias por tu interés en **NightMC Network**."
     ), inline=False)
@@ -315,7 +315,7 @@ def embed_setup(guild):
         "┃  🚫  **Reportes** — Jugadores, bugs, hacks\n"
         "┃  ⚖️  **Apelaciones** — Bans, mutes, sanciones\n"
         "┃  💰  **Pagos Tienda** — Compras, rangos, problemas\n"
-        "┃  📋  **Postulaciones Staff** — Aplicar para ser staff\n"
+        "┃  📋  **Postulaciones Staff** — Problemas con postulaciones\n"
         "┃  🤝  **Alianzas** — Propuestas de colaboración\n"
         "┃  🎉  **Eventos** — Premios no recibidos, participación\n"
         "\n"
@@ -799,7 +799,7 @@ class TicketLauncher(ui.View):
                    discord.SelectOption(label="Pagos Tienda",         value="pagos_tienda",
                        emoji="💰", description="Compras, rangos, problemas"),
                    discord.SelectOption(label="Postulaciones Staff",  value="postulacion",
-                       emoji="📋", description="Aplicar para ser staff"),
+                       emoji="📋", description="Problemas con postulaciones"),
                    discord.SelectOption(label="Alianzas",             value="alianza",
                        emoji="🤝", description="Propuestas de colaboración"),
                    discord.SelectOption(label="Eventos",              value="evento",
