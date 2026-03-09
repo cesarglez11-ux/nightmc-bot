@@ -46,28 +46,28 @@ CATEGORIAS_TICKET = {
     "evento":       CAT_EVENTO,
 }
 ROLES_TICKET = {
-    "soporte":      (None,                        True),
-    "reporte":      ("--------Low staff--------",    True),
-    "apelacion":    ("--------Medium Staff--------", True),
-    "pagos_tienda": ("--------Head staff--------",   False),
-    "postulacion":  ("--------Medium Staff--------", True),
-    "alianza":      ("--------Head staff--------",   False),
-    "evento":       ("--------Low staff--------",    True),
+    "soporte":      (None,           True),
+    "reporte":      ("Low staff",    True),
+    "apelacion":    ("Medium Staff", True),
+    "pagos_tienda": ("Head staff",   False),
+    "postulacion":  ("Medium Staff", True),
+    "alianza":      ("Head staff",   False),
+    "evento":       ("Low staff",    True),
 }
 MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
-    "ganadores-eventos":   ("--------Head staff--------",  CAT_TRANSFER, "🎖️  Ganadores de Eventos"),
-    "unregister":          ("--------Head staff--------",  CAT_TRANSFER, "🔐  Unregister"),
-    "reembolso":           ("--------Head staff--------",  CAT_TRANSFER, "💸  Reembolso"),
-    "staff-report":        ("--------Head staff--------",  CAT_TRANSFER, "🚨  Staff Report"),
-    "error-config":        ("--------Head staff--------",  CAT_TRANSFER, "⚠️  Error de Configuración"),
-    "revives":             ("--------High Staff--------", CAT_TRANSFER, "💊  Revives"),
-    "cambio-nick":         ("--------High Staff--------", CAT_TRANSFER, "✏️  Cambio de Nick"),
+    "ganadores-eventos":   ("Head staff",  CAT_TRANSFER, "🎖️  Ganadores de Eventos"),
+    "unregister":          ("Head staff",  CAT_TRANSFER, "🔐  Unregister"),
+    "reembolso":           ("Head staff",  CAT_TRANSFER, "💸  Reembolso"),
+    "staff-report":        ("Head staff",  CAT_TRANSFER, "🚨  Staff Report"),
+    "error-config":        ("Head staff",  CAT_TRANSFER, "⚠️  Error de Configuración"),
+    "revives":             ("High Staff",  CAT_TRANSFER, "💊  Revives"),
+    "cambio-nick":         ("High Staff",  CAT_TRANSFER, "✏️  Cambio de Nick"),
 }
-STAFF_TEAM        = "--------Staff team--------"
+STAFF_TEAM        = "Staff team"
 ROL_SOPORTE       = "| Soporte"
-TODOS_ROLES_STAFF = ["--------Low staff--------", "--------Medium Staff--------", "--------High Staff--------", "--------Head staff--------", "--------Staff team--------"]
-ROLES_SUPERIORES  = ["--------High Staff--------", "--------Head staff--------"]
+TODOS_ROLES_STAFF = ["Low staff", "Medium Staff", "High Staff", "Head staff", "Staff team"]
+ROLES_SUPERIORES  = ["High Staff", "Head staff"]
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎨  ESTÉTICA
