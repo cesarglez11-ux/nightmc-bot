@@ -30,7 +30,6 @@ CAT_SOPORTE      = "🛠️ SOPORTE"
 CAT_REPORTE      = "🚫 REPORTES"
 CAT_APELACION    = "⚖️ APELACIONES"
 CAT_PAGOS        = "💰 Pagos Tienda"
-CAT_INGAME        = "🎮 Soporte de InGame"
 CAT_POSTULACION  = "📋 Postulaciones Staff"
 CAT_ALIANZA      = "🤝 Alianzas"
 CAT_EVENTO       = "🎉 Eventos"
@@ -42,7 +41,6 @@ CATEGORIAS_TICKET = {
     "reporte":      CAT_REPORTE,
     "apelacion":    CAT_APELACION,
     "pagos_tienda": CAT_PAGOS,
-    "ingame":        CAT_INGAME,
     "postulacion":  CAT_POSTULACION,
     "alianza":      CAT_ALIANZA,
     "evento":       CAT_EVENTO,
@@ -52,20 +50,16 @@ ROLES_TICKET = {
     "reporte":      ("Low staff",    True),
     "apelacion":    ("Medium Staff", True),
     "pagos_tienda": ("Head staff",   False),
-    "ingame":        ("Low staff",    True),
     "postulacion":  ("Medium Staff", True),
     "alianza":      ("Head staff",   False),
     "evento":       ("Low staff",    True),
 }
-# Subcategorías de /transfer → (rol_requerido, categoria_destino, label_display)
 TRANSFER_SUBS = {
-    # ── Head staff ──────────────────────────────────────────────
     "ganadores-eventos":   ("Head staff",  CAT_TRANSFER, "🎖️  Ganadores de Eventos"),
     "unregister":          ("Head staff",  CAT_TRANSFER, "🔐  Unregister"),
     "reembolso":           ("Head staff",  CAT_TRANSFER, "💸  Reembolso"),
     "staff-report":        ("Head staff",  CAT_TRANSFER, "🚨  Staff Report"),
     "error-config":        ("Head staff",  CAT_TRANSFER, "⚠️  Error de Configuración"),
-    # ── Hight staff ─────────────────────────────────────────────
     "revives":             ("Hight staff", CAT_TRANSFER, "💊  Revives"),
     "cambio-nick":         ("Hight staff", CAT_TRANSFER, "✏️  Cambio de Nick"),
 }
@@ -180,28 +174,6 @@ def embed_ticket_pagos(guild, user, rol_tag, campos):
     e.set_image(url=BANNER_URL)
     return _footer(e, guild)
 
-def embed_ticket_ingame(guild, user, rol_tag, campos):
-    e = discord.Embed(color=COLOR_BASE)
-    e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
-    e.title = "🎮  Soporte de InGame — NightMC Network"
-    e.description = (
-        f"Buenas {user.mention}. Tu reporte de bug será revisado por {rol_tag}.\n"
-        f"Por favor proporciona la mayor cantidad de detalles posible."
-    )
-    e.add_field(name=SEP, value="\u200b", inline=False)
-    e.add_field(name="👤  Staff responsable", value=f"> {rol_tag}", inline=False)
-    e.add_field(name="🎮  Nick",              value=f"```{campos.get('Nick','—')}```", inline=True)
-    e.add_field(name="🐛  Bug o error",       value=f"```{campos.get('Bug','—')}```", inline=False)
-    e.add_field(name="📍  ¿Dónde ocurrió?",   value=f"```{campos.get('Ubicacion','—')}```", inline=False)
-    e.add_field(name=SEP, value=(
-        "> 🔍  El equipo investigará el bug reportado.\n"
-        "> 📸  Adjunta capturas o vídeos si es posible.\n"
-        "> 🙏  Gracias por mejorar **NightMC Network**."
-    ), inline=False)
-    e.set_thumbnail(url=user.display_avatar.url)
-    e.set_image(url=BANNER_URL)
-    return _footer(e, guild)
-
 def embed_ticket_postulacion(guild, user, rol_tag, campos):
     e = discord.Embed(color=COLOR_BASE)
     e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
@@ -273,7 +245,6 @@ EMBED_TICKET = {
     "reporte":      embed_ticket_reporte,
     "apelacion":    embed_ticket_apelacion,
     "pagos_tienda": embed_ticket_pagos,
-    "juego":        embed_ticket_juego,
     "postulacion":  embed_ticket_postulacion,
     "alianza":      embed_ticket_alianza,
     "evento":       embed_ticket_evento,
@@ -344,7 +315,6 @@ def embed_setup(guild):
         "┃  🚫  **Reportes** — Jugadores, bugs, hacks\n"
         "┃  ⚖️  **Apelaciones** — Bans, mutes, sanciones\n"
         "┃  💰  **Pagos Tienda** — Compras, rangos, problemas\n"
-        "┃  🎮  **Soporte de Juego** — Bugs in-game, glitches\n"
         "┃  📋  **Postulaciones Staff** — Aplicar para ser staff\n"
         "┃  🤝  **Alianzas** — Propuestas de colaboración\n"
         "┃  🎉  **Eventos** — Premios no recibidos, participación\n"
@@ -535,9 +505,6 @@ async def cerrar_ticket(canal: discord.TextChannel, guild: discord.Guild,
     except discord.NotFound:
         pass
 
-# ╔═══════════════════════════════════════════════════════════════╗
-#   🔑  RESETEAR CLAIM
-# ╚═══════════════════════════════════════════════════════════════╝
 def _tiene_claim_button(msg: discord.Message) -> bool:
     for row in msg.components:
         for child in row.children:
@@ -685,7 +652,6 @@ class TransferView(ui.View):
         self.owner_id = owner_id
 
     @ui.select(placeholder="✦  Selecciona el tipo de gestión...", options=[
-        # ── 👑  Head staff ─────────────────────────────────────
         discord.SelectOption(label="Ganadores de Eventos",    value="ganadores-eventos",
             emoji="🎖️", description="👑 Head staff — Premio no entregado"),
         discord.SelectOption(label="Unregister",              value="unregister",
@@ -696,7 +662,6 @@ class TransferView(ui.View):
             emoji="🚨", description="👑 Head staff — Reportar a un staff"),
         discord.SelectOption(label="Error de Configuración",  value="error-config",
             emoji="⚠️", description="👑 Head staff — Error de config/permisos"),
-        # ── 🔰  Hight staff ───────────────────────────────────
         discord.SelectOption(label="Revives",                 value="revives",
             emoji="💊", description="🔰 Hight staff — Recuperar inventario"),
         discord.SelectOption(label="Cambio de Nick",          value="cambio-nick",
@@ -712,41 +677,28 @@ class TransferView(ui.View):
         canal      = interaction.channel
         guild      = interaction.guild
         owner_id   = self.owner_id or _get_owner_id_from_topic(canal)
-
         cat_t = await get_o_crear_cat(guild, cat_nombre)
         if cat_t and canal.category != cat_t:
             try: await canal.edit(category=cat_t)
             except (discord.Forbidden, discord.HTTPException): pass
-
         asyncio.create_task(rename_robusto(canal, destino + "-pendiente"))
-
-        # Quitar permisos de todos los roles de staff
         roles_quitar = [STAFF_TEAM] + [n for n, _ in ROLES_TICKET.values() if n]
         for target in list(canal.overwrites):
             if isinstance(target, discord.Role) and target.name in roles_quitar:
                 try: await canal.set_permissions(target, overwrite=None)
                 except discord.Forbidden: pass
-
-        # Dar permisos al rol destino
         if rol_nuevo:
             try: await canal.set_permissions(rol_nuevo, read_messages=True, send_messages=True)
             except discord.Forbidden: pass
-        else:
-            print(f"[transfer] ⚠️  Rol '{nombre_rol}' no encontrado.")
-
-        # Mantener permisos del dueño del ticket
         if owner_id:
             owner = guild.get_member(owner_id)
             if owner:
                 try: await canal.set_permissions(owner, read_messages=True, send_messages=True, attach_files=True)
                 except discord.Forbidden: pass
-
         await resetear_claim_en_canal(canal, destino, owner_id)
-
         mention = rol_nuevo.mention if rol_nuevo else f"@{nombre_rol}"
         await interaction.response.send_message(embed=embed_transfer_msg(label, guild))
         await canal.send(f"{mention}  ✦  Se requiere atención en este ticket — **{label}**.")
-
         log_e = discord.Embed(title="🔄  Ticket Transferido", color=COLOR_WARN, timestamp=datetime.datetime.now())
         log_e.add_field(name="Canal",   value=canal.mention,            inline=True)
         log_e.add_field(name="Destino", value=label,                    inline=True)
@@ -798,25 +750,13 @@ class PagosTiendaModal(ui.Modal, title="NightMc  ·  Soporte Pagos Tienda"):
             {"Nick de compra": self.nick.value, "ID de compra": self.id_pago.value,
              "Problema": self.error.value}, "pagos-tienda")
 
-class JuegoModal(ui.Modal, title="NightMc  ·  Soporte de Juego"):
-    nick  = ui.TextInput(label="Nick", placeholder="Tu nick en Minecraft")
-    bug   = ui.TextInput(label="Bug o error", placeholder="¿Qué bug o error encontraste?",
-                         style=discord.TextStyle.paragraph)
-    lugar = ui.TextInput(label="¿Dónde ocurrió?", placeholder="Mundo, coordenadas, servidor...",
-                         style=discord.TextStyle.paragraph, required=False)
-    async def on_submit(self, i):
-        await crear_ticket(i, "juego",
-            {"Nick": self.nick.value, "Bug": self.bug.value, "Ubicacion": self.lugar.value or "—"},
-            "juego")
-
 class PostulacionModal(ui.Modal, title="NightMc  ·  Postulación Staff"):
     nick  = ui.TextInput(label="Nick", placeholder="Tu nick en Minecraft")
     duda  = ui.TextInput(label="Duda", placeholder="¿Qué clase de duda tienes?",
                          style=discord.TextStyle.paragraph)
     async def on_submit(self, i):
         await crear_ticket(i, "postulacion",
-            {"Nick": self.nick.value, "Duda": self.duda.value},
-            "postulacion")
+            {"Nick": self.nick.value, "Duda": self.duda.value}, "postulacion")
 
 class AlianzaModal(ui.Modal, title="NightMc  ·  Propuesta de Alianza"):
     servidor  = ui.TextInput(label="Nombre del servidor", placeholder="¿Cómo se llama tu servidor?")
@@ -827,11 +767,10 @@ class AlianzaModal(ui.Modal, title="NightMc  ·  Propuesta de Alianza"):
     async def on_submit(self, i):
         await crear_ticket(i, "alianza",
             {"Servidor": self.servidor.value, "Miembros": self.miembros.value,
-             "Propuesta": self.propuesta.value},
-            "alianza")
+             "Propuesta": self.propuesta.value}, "alianza")
 
 class EventoModal(ui.Modal, title="NightMc  ·  Soporte de Eventos"):
-    nick   = ui.TextInput(label="Nick",           placeholder="Tu nick en Minecraft")
+    nick   = ui.TextInput(label="Nick",              placeholder="Tu nick en Minecraft")
     evento = ui.TextInput(label="Nombre del evento", placeholder="¿En qué evento participaste?")
     premio = ui.TextInput(label="Premio esperado",   placeholder="¿Qué premio te corresponde?")
     desc   = ui.TextInput(label="Descripción",       placeholder="Explica el problema con detalle",
@@ -839,8 +778,7 @@ class EventoModal(ui.Modal, title="NightMc  ·  Soporte de Eventos"):
     async def on_submit(self, i):
         await crear_ticket(i, "evento",
             {"Nick": self.nick.value, "Evento": self.evento.value,
-             "Premio": self.premio.value, "Descripcion": self.desc.value},
-            "evento")
+             "Premio": self.premio.value, "Descripcion": self.desc.value}, "evento")
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎡  MENÚ PRINCIPAL — Dropdown
@@ -860,8 +798,6 @@ class TicketLauncher(ui.View):
                        emoji="⚖️", description="Bans, mutes, sanciones"),
                    discord.SelectOption(label="Pagos Tienda",         value="pagos_tienda",
                        emoji="💰", description="Compras, rangos, problemas"),
-                   discord.SelectOption(label="Soporte de Juego",     value="juego",
-                       emoji="🎮", description="Bugs in-game, glitches, errores"),
                    discord.SelectOption(label="Postulaciones Staff",  value="postulacion",
                        emoji="📋", description="Aplicar para ser staff"),
                    discord.SelectOption(label="Alianzas",             value="alianza",
@@ -875,7 +811,6 @@ class TicketLauncher(ui.View):
             "reporte":      ReporteModal(),
             "apelacion":    ApelacionModal(),
             "pagos_tienda": PagosTiendaModal(),
-            "juego":        JuegoModal(),
             "postulacion":  PostulacionModal(),
             "alianza":      AlianzaModal(),
             "evento":       EventoModal(),
@@ -1100,7 +1035,7 @@ def _build_help(guild):
         "`/slowmode [seg]` — Modo lento (0 = off)"
     ), inline=False)
     e.add_field(name="🔄  Transferir", value=(
-        "`/transfer` — Derivar a Rol Discord / Ver Owner\n"
+        "`/transfer` — Derivar a Rol Discord\n"
         "`/specifictag_staff @staff` — Asignar a 1 staff\n"
         "`/specifictag_role @rol` — Asignar a un rol"
     ), inline=False)
