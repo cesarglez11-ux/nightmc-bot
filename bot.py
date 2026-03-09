@@ -1051,7 +1051,7 @@ def _build_help(guild):
         "> `rename <nombre>` — Renombrar el canal del ticket\n"
         "> `slowmode [seg]` — Activar modo lento *(0 = desactivar)*"
     ), inline=False)
-    e.add_field(name="🔄  Transferencias  🟠", value=(
+    e.add_field(name="🔄  Transferencias  🔵", value=(
         "> `transfer` — Derivar ticket a otro equipo de staff\n"
         "> `specifictag_staff @staff` — Asignar ticket a un staff específico\n"
         "> `specifictag_role @rol` — Asignar ticket a un rol específico"
