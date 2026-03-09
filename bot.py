@@ -34,7 +34,7 @@ CAT_POSTULACION  = "📋 Postulaciones Staff"
 CAT_ALIANZA      = "🤝 Alianzas"
 CAT_EVENTO       = "🎉 Eventos"
 CAT_TRANSFER     = "🔄 TRANSFERIDOS"
-LOGS_CANAL       = "🎫│logs-tickets"
+LOGS_CANAL       = "ticket-logs"
 
 CATEGORIAS_TICKET = {
     "soporte":      CAT_SOPORTE,
@@ -54,18 +54,20 @@ ROLES_TICKET = {
     "alianza":      ("Head staff",   False),
     "evento":       ("Low staff",    True),
 }
+MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
     "ganadores-eventos":   ("Head staff",  CAT_TRANSFER, "🎖️  Ganadores de Eventos"),
     "unregister":          ("Head staff",  CAT_TRANSFER, "🔐  Unregister"),
     "reembolso":           ("Head staff",  CAT_TRANSFER, "💸  Reembolso"),
     "staff-report":        ("Head staff",  CAT_TRANSFER, "🚨  Staff Report"),
     "error-config":        ("Head staff",  CAT_TRANSFER, "⚠️  Error de Configuración"),
-    "revives":             ("Hight staff", CAT_TRANSFER, "💊  Revives"),
-    "cambio-nick":         ("Hight staff", CAT_TRANSFER, "✏️  Cambio de Nick"),
+    "revives":             ("High Staff", CAT_TRANSFER, "💊  Revives"),
+    "cambio-nick":         ("High Staff", CAT_TRANSFER, "✏️  Cambio de Nick"),
 }
 STAFF_TEAM        = "Staff team"
-TODOS_ROLES_STAFF = ["Low staff", "Medium Staff", "Hight staff", "Head staff", "Staff team"]
-ROLES_SUPERIORES  = ["Hight staff", "Head staff"]
+ROL_SOPORTE       = "| Soporte"
+TODOS_ROLES_STAFF = ["Low staff", "Medium Staff", "High Staff", "Head staff", "Staff team"]
+ROLES_SUPERIORES  = ["High Staff", "Head staff"]
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎨  ESTÉTICA
@@ -76,7 +78,7 @@ COLOR_OK     = 0x57f287
 COLOR_DANGER = 0xed4245
 COLOR_WARN   = 0xfee75c
 COLOR_BLUE   = 0x5865f2
-FOOTER       = "© Powered by NightMC"
+FOOTER       = "NightMc.me"
 SEP          = "──────────────────────────────"
 
 def _footer(e, guild):
@@ -179,7 +181,7 @@ def embed_ticket_postulacion(guild, user, rol_tag, campos):
     e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
     e.title = "📋  Postulación Staff — NightMC Network"
     e.description = (
-        f"Buenas {user.mention}. Tu situación será revisada por {rol_tag}.\n"
+        f"Buenas {user.mention}. Tu postulación será evaluada por {rol_tag}.\n"
         f"Revisaremos tu solicitud con atención. Sé paciente."
     )
     e.add_field(name=SEP, value="\u200b", inline=False)
@@ -187,7 +189,7 @@ def embed_ticket_postulacion(guild, user, rol_tag, campos):
     e.add_field(name="🎮  Nick", value=f"```{campos.get('Nick','—')}```", inline=True)
     e.add_field(name="💬  Duda", value=f"```{campos.get('Duda','—')}```", inline=False)
     e.add_field(name=SEP, value=(
-        "> ⚠️  Si abres el ticket sin motivo, seras sancionado.\n"
+        "> ⚠️  Las postulaciones falsas o con datos incorrectos serán rechazadas.\n"
         "> ⏳  El proceso de evaluación puede tomar varios días.\n"
         "> 🙏  Gracias por tu interés en **NightMC Network**."
     ), inline=False)
@@ -315,7 +317,7 @@ def embed_setup(guild):
         "┃  🚫  **Reportes** — Jugadores, bugs, hacks\n"
         "┃  ⚖️  **Apelaciones** — Bans, mutes, sanciones\n"
         "┃  💰  **Pagos Tienda** — Compras, rangos, problemas\n"
-        "┃  📋  **Postulaciones Staff** — Problemas con postulaciones\n"
+        "┃  📋  **Postulaciones Staff** — Aplicar para ser staff\n"
         "┃  🤝  **Alianzas** — Propuestas de colaboración\n"
         "┃  🎉  **Eventos** — Premios no recibidos, participación\n"
         "\n"
@@ -331,7 +333,7 @@ def embed_setup(guild):
                 value="> Nuestro equipo te atenderá **lo antes posible**.", inline=False)
     e.add_field(name="🎙️  ¿Prefieres atención por voz?", value=(
         "> También ofrecemos soporte en **canales de voz**.\n"
-        "> Entra en **<#1471893022630219920>** y un miembro del\n"
+        "> Entra en **┋ Sala de Espera** y un miembro del\n"
         "> **Staff Team** te atenderá cuando esté disponible.\n"
         "> *No garantizamos atención 24/7 por voz, pero siempre lo intentamos.*"
     ), inline=False)
@@ -560,6 +562,8 @@ async def crear_ticket(interaction: discord.Interaction,
     }
     if rol_esp:            perms[rol_esp] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
     if usar_st and rol_st: perms[rol_st]  = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+    rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
+    if rol_solo_lectura:   perms[rol_solo_lectura] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
     try:
         canal = await guild.create_text_channel(
             name=f"{nombre_canal}-pendiente",
@@ -606,6 +610,8 @@ class TicketControl(ui.View):
     @ui.button(label="Claim", style=discord.ButtonStyle.success, emoji="🔑", custom_id="claim_t")
     async def claim(self, interaction: discord.Interaction, button: ui.Button):
         if not es_staff(interaction.user):
+            if any(r.name == ROL_SOPORTE for r in interaction.user.roles):
+                return await interaction.response.send_message(MSG_SIN_PERMISOS, ephemeral=True)
             return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
         canal_id = interaction.channel.id
         owner_id = self._get_owner_id(interaction.channel)
@@ -628,6 +634,8 @@ class TicketControl(ui.View):
     @ui.button(label="Transferir", style=discord.ButtonStyle.primary, emoji="🔄", custom_id="transfer_t")
     async def transfer_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not es_staff(interaction.user):
+            if any(r.name == ROL_SOPORTE for r in interaction.user.roles):
+                return await interaction.response.send_message(MSG_SIN_PERMISOS, ephemeral=True)
             return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
         owner_id = self._get_owner_id(interaction.channel)
         await interaction.response.send_message(
@@ -637,6 +645,8 @@ class TicketControl(ui.View):
     @ui.button(label="Delete", style=discord.ButtonStyle.danger, emoji="🗑️", custom_id="close_t")
     async def close(self, interaction: discord.Interaction, button: ui.Button):
         if not es_staff(interaction.user):
+            if any(r.name == ROL_SOPORTE for r in interaction.user.roles):
+                return await interaction.response.send_message(MSG_SIN_PERMISOS, ephemeral=True)
             return await interaction.response.send_message(
                 "❌  Solo el personal autorizado puede cerrar este expediente.", ephemeral=True)
         owner_id = self._get_owner_id(interaction.channel)
@@ -799,7 +809,7 @@ class TicketLauncher(ui.View):
                    discord.SelectOption(label="Pagos Tienda",         value="pagos_tienda",
                        emoji="💰", description="Compras, rangos, problemas"),
                    discord.SelectOption(label="Postulaciones Staff",  value="postulacion",
-                       emoji="📋", description="Problemas con postulaciones"),
+                       emoji="📋", description="Aplicar para ser staff"),
                    discord.SelectOption(label="Alianzas",             value="alianza",
                        emoji="🤝", description="Propuestas de colaboración"),
                    discord.SelectOption(label="Eventos",              value="evento",
