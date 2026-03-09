@@ -183,7 +183,7 @@ def embed_ticket_pagos(guild, user, rol_tag, campos):
 def embed_ticket_juego(guild, user, rol_tag, campos):
     e = discord.Embed(color=COLOR_BASE)
     e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
-    e.title = "🎮  Soporte de Juego — NightMC Network"
+    e.title = "🎮  Soporte de InGame — NightMC Network"
     e.description = (
         f"Buenas {user.mention}. Tu reporte de bug será revisado por {rol_tag}.\n"
         f"Por favor proporciona la mayor cantidad de detalles posible."
