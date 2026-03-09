@@ -34,7 +34,7 @@ CAT_POSTULACION  = "📋 Postulaciones Staff"
 CAT_ALIANZA      = "🤝 Alianzas"
 CAT_EVENTO       = "🎉 Eventos"
 CAT_TRANSFER     = "🔄 TRANSFERIDOS"
-LOGS_CANAL       = "ticket-logs"
+LOGS_CANAL       = "🎫│logs-tickets"
 
 CATEGORIAS_TICKET = {
     "soporte":      CAT_SOPORTE,
