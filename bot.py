@@ -20,7 +20,7 @@ import asyncio, datetime, io, os
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  ⚙️  CONFIGURACIÓN  —  Solo edita esta sección
+#  ⚙️  CONFIGURACIÓN  —  Solo edita esta seccion
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ROL_LOW   = "Low staff"
