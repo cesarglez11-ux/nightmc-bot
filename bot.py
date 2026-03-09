@@ -333,7 +333,7 @@ def embed_setup(guild):
                 value="> Nuestro equipo te atenderá **lo antes posible**.", inline=False)
     e.add_field(name="🎙️  ¿Prefieres atención por voz?", value=(
         "> También ofrecemos soporte en **canales de voz**.\n"
-        "> Entra en **┋ Sala de Espera** y un miembro del\n"
+        "> Entra en **<#1471893022630219920>** y un miembro del\n"
         "> **Staff Team** te atenderá cuando esté disponible.\n"
         "> *No garantizamos atención 24/7 por voz, pero siempre lo intentamos.*"
     ), inline=False)
