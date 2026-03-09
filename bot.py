@@ -180,7 +180,7 @@ def embed_ticket_pagos(guild, user, rol_tag, campos):
     e.set_image(url=BANNER_URL)
     return _footer(e, guild)
 
-def embed_ticket_juego(guild, user, rol_tag, campos):
+def embed_ticket_ingame(guild, user, rol_tag, campos):
     e = discord.Embed(color=COLOR_BASE)
     e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
     e.title = "🎮  Soporte de InGame — NightMC Network"
