@@ -34,6 +34,7 @@ CAT_POSTULACION  = "📋 Postulaciones Staff"
 CAT_ALIANZA      = "🤝 Alianzas"
 CAT_EVENTO       = "🎉 Eventos"
 CAT_BOTS         = "🤖 Soporte Bots"
+CAT_BOTS_HEAD    = "⚙️ Escalación de Bots"
 CAT_TRANSFER     = "🔄 TRANSFERIDOS"
 LOGS_CANAL       = "logs-tickets"
 
@@ -55,17 +56,18 @@ ROLES_TICKET = {
     "postulacion":  ("Medium Staff", True),
     "alianza":      ("Head staff",   False),
     "evento":       ("Low staff",    True),
-    "bots":         ("Low staff",    True),
+    "bots":         ("Medium Staff", False),
 }
 MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
-    "ganadores-eventos":   ("Head staff",  CAT_TRANSFER, "🎖️  Ganadores de Eventos"),
-    "unregister":          ("Head staff",  CAT_TRANSFER, "🔐  Unregister"),
-    "reembolso":           ("Head staff",  CAT_TRANSFER, "💸  Reembolso"),
-    "staff-report":        ("Head staff",  CAT_TRANSFER, "🚨  Staff Report"),
-    "error-config":        ("Head staff",  CAT_TRANSFER, "⚠️  Error de Configuración"),
-    "revives":             ("High Staff",  CAT_TRANSFER, "💊  Revives"),
-    "cambio-nick":         ("High Staff",  CAT_TRANSFER, "✏️  Cambio de Nick"),
+    "ganadores-eventos":   ("Head staff",  CAT_TRANSFER,   "🎖️  Ganadores de Eventos"),
+    "unregister":          ("Head staff",  CAT_TRANSFER,   "🔐  Unregister"),
+    "reembolso":           ("Head staff",  CAT_TRANSFER,   "💸  Reembolso"),
+    "staff-report":        ("Head staff",  CAT_TRANSFER,   "🚨  Staff Report"),
+    "error-config":        ("Head staff",  CAT_TRANSFER,   "⚠️  Error de Configuración"),
+    "revives":             ("High Staff",  CAT_TRANSFER,   "💊  Revives"),
+    "cambio-nick":         ("High Staff",  CAT_TRANSFER,   "✏️  Cambio de Nick"),
+    "bug-bot-critico":     ("Head staff",  CAT_BOTS_HEAD,  "🚨  Bug Crítico de Bot"),
 }
 STAFF_TEAM        = "Staff team"
 ROL_SOPORTE       = "| Soporte"
@@ -250,18 +252,18 @@ def embed_ticket_bots(guild, user, rol_tag, campos):
     e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
     e.title = "🤖  Soporte de Bots — NightMC Network"
     e.description = (
-        f"Buenas {user.mention}. Tu reporte sobre un bot será revisado por {rol_tag}.\n"
-        f"Describe el problema con el mayor detalle posible para agilizar la solución."
+        f"Buenas {user.mention}. Tu reporte ha sido recibido y será atendido por {rol_tag}.\n"
+        f"Si el problema es crítico, el staff lo escalará al equipo técnico."
     )
     e.add_field(name=SEP, value="\u200b", inline=False)
-    e.add_field(name="👤  Staff responsable",  value=f"> {rol_tag}",                                    inline=False)
-    e.add_field(name="🤖  Bot afectado",       value=f"```{campos.get('Bot','—')}```",                  inline=True)
-    e.add_field(name="🎮  Tu nick",            value=f"```{campos.get('Nick','—')}```",                 inline=True)
-    e.add_field(name="⚠️  Problema",           value=f"```{campos.get('Problema','—')}```",             inline=False)
-    e.add_field(name="🔁  ¿Se puede reproducir?", value=f"```{campos.get('Reproducible','—')}```",     inline=False)
+    e.add_field(name="👤  Staff responsable",     value=f"> {rol_tag}",                                    inline=False)
+    e.add_field(name="🤖  Bot afectado",          value=f"```{campos.get('Bot','—')}```",                  inline=True)
+    e.add_field(name="🎮  Tu nick",               value=f"```{campos.get('Nick','—')}```",                 inline=True)
+    e.add_field(name="⚠️  Problema",              value=f"```{campos.get('Problema','—')}```",             inline=False)
+    e.add_field(name="🔁  ¿Se puede reproducir?", value=f"```{campos.get('Reproducible','—')}```",        inline=False)
     e.add_field(name=SEP, value=(
         "> 📸  Adjunta capturas o vídeos del error si los tienes.\n"
-        "> 🔍  El equipo revisará el problema e intentará replicarlo.\n"
+        "> 🔍  Si el bug es grave, el staff lo escalará a **Head staff**.\n"
         "> 🙏  Gracias por ayudar a mejorar **NightMC Network**."
     ), inline=False)
     e.set_thumbnail(url=user.display_avatar.url)
@@ -313,8 +315,8 @@ def embed_transfer_menu(guild):
         "El ticket será redirigido al equipo correcto.\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "👑  **Head staff** — Gestiones críticas\n"
-        "🔰  **Hight staff** — Gestiones avanzadas\n"
-        "🛡️  **Staff team** — Gestiones generales"
+        "🔰  **High Staff** — Gestiones avanzadas\n"
+        "🚨  **Bug Crítico de Bot** — Escalar problema grave al equipo técnico"
     )
     e.set_footer(text="NightMc Network  ✦  Solo staff puede usar esta función")
     return e
@@ -709,6 +711,8 @@ class TransferView(ui.View):
             emoji="💊", description="🔰 Hight staff — Recuperar inventario"),
         discord.SelectOption(label="Cambio de Nick",          value="cambio-nick",
             emoji="✏️", description="🔰 Hight staff — Cambiar nick vinculado"),
+        discord.SelectOption(label="Bug Crítico de Bot",      value="bug-bot-critico",
+            emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
     ])
     async def select_callback(self, interaction: discord.Interaction, select: ui.Select):
         destino  = select.values[0]
