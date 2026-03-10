@@ -650,7 +650,7 @@ class TicketControl(ui.View):
             return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
         canal_id = interaction.channel.id
         owner_id = self._get_owner_id(interaction.channel)
-        if interaction.user.id == owner_id:
+        if interaction.user.id == owner_id and not any(r.name == "Head staff" for r in interaction.user.roles):
             return await interaction.response.send_message(ERR_PROPIO, ephemeral=True)
         claimed = bot._claimed_channels.get(canal_id)
         if claimed and claimed != interaction.user.id:
@@ -907,7 +907,7 @@ async def claim_slash(interaction: discord.Interaction):
         return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
     await interaction.response.defer()
     owner_id = _get_owner_id_from_topic(interaction.channel)
-    if interaction.user.id == owner_id:
+    if interaction.user.id == owner_id and not any(r.name == "Head staff" for r in interaction.user.roles):
         return await interaction.followup.send(ERR_PROPIO, ephemeral=True)
     base = await calcular_base_nombre(interaction.channel)
     asyncio.create_task(rename_robusto(interaction.channel, f"{base}-{interaction.user.name[:12].lower()}"))
@@ -1231,7 +1231,8 @@ async def sync(ctx):
 async def claim_prefix(ctx):
     if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
     owner_id = _get_owner_id_from_topic(ctx.channel)
-    if ctx.author.id == owner_id: return await ctx.send(ERR_PROPIO)
+    if ctx.author.id == owner_id and not any(r.name == "Head staff" for r in ctx.author.roles):
+        return await ctx.send(ERR_PROPIO)
     base = await calcular_base_nombre(ctx.channel)
     asyncio.create_task(rename_robusto(ctx.channel, f"{base}-{ctx.author.name[:12].lower()}"))
     await ctx.send(embed=embed_claimed(ctx.author, ctx.guild))
