@@ -68,6 +68,7 @@ TRANSFER_SUBS = {
     "revives":             ("High Staff",  "💊 Escalación - Revives",                "💊  Revives"),
     "cambio-nick":         ("High Staff",  "✏️ Escalación - Cambio de Nick",         "✏️  Cambio de Nick"),
     "bug-bot-critico":     ("Head staff",  CAT_BOTS_HEAD,                            "🚨  Bug Crítico de Bot"),
+    "ver-owner":           ("Head staff",  None,                                     "👁️  Ver Owner del Ticket"),
 }
 STAFF_TEAM        = "Staff team"
 ROL_SOPORTE       = "| Soporte"
@@ -330,6 +331,9 @@ def embed_transfer_menu(guild):
     e.add_field(name="🚨  Escalación Técnica — Bots", value=(
         "> 🤖  **Bug Crítico de Bot** — Error grave que afecta el funcionamiento\n"
         "> ⚙️  El caso será revisado por **Head staff** en canal exclusivo"
+    ), inline=False)
+    e.add_field(name="👁️  Utilidades — Head staff", value=(
+        "> 👤  **Ver Owner del Ticket** — Consulta quién abrió este ticket sin moverlo"
     ), inline=False)
     e.add_field(name="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", value=(
         "> ⚠️  Solo transfiere si el caso **supera tus permisos**\n"
@@ -733,9 +737,34 @@ class TransferView(ui.View):
             emoji="✏️", description="🔰 Hight staff — Cambiar nick vinculado"),
         discord.SelectOption(label="Bug Crítico de Bot",      value="bug-bot-critico",
             emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
+        discord.SelectOption(label="Ver Owner del Ticket",    value="ver-owner",
+            emoji="👁️", description="👑 Head staff — Ver quién abrió este ticket"),
     ])
     async def select_callback(self, interaction: discord.Interaction, select: ui.Select):
         destino  = select.values[0]
+
+        # ── Ver Owner — solo Head staff, no mueve el ticket ──
+        if destino == "ver-owner":
+            if not any(r.name == "Head staff" for r in interaction.user.roles):
+                return await interaction.response.send_message(
+                    "❌  Solo **Head staff** puede usar esta opción.", ephemeral=True)
+            owner_id = self.owner_id or _get_owner_id_from_topic(interaction.channel)
+            owner    = interaction.guild.get_member(owner_id) if owner_id else None
+            e = discord.Embed(color=COLOR_BLUE)
+            e.set_author(name="NightMc Network  ✦  Info del Ticket",
+                         icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+            e.title = "👁️  Owner del Ticket"
+            if owner:
+                e.add_field(name="👤  Usuario",   value=f"> {owner.mention}",       inline=True)
+                e.add_field(name="🏷️  Nombre",    value=f"> `{owner.name}`",        inline=True)
+                e.add_field(name="🆔  ID",         value=f"> `{owner.id}`",          inline=True)
+                e.add_field(name="📅  En server",  value=f"> <t:{int(owner.joined_at.timestamp())}:D>", inline=True)
+                e.set_thumbnail(url=owner.display_avatar.url)
+            else:
+                e.description = "> ❌  No se pudo obtener la información del owner."
+            e.set_footer(text=FOOTER, icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+            return await interaction.response.send_message(embed=e, ephemeral=True)
+
         sub      = TRANSFER_SUBS.get(destino)
         if not sub:
             return await interaction.response.send_message("❌  Subcategoría no encontrada.", ephemeral=True)
