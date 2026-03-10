@@ -1096,10 +1096,6 @@ def _build_help(guild, member: discord.Member = None):
             "> `rename <nombre>` — Renombrar el canal del ticket\n"
             "> `slowmode [seg]` — Activar modo lento *(0 = desactivar)*"
         ), inline=False)
-        e.add_field(name="🎉  Sorteos  🔵", value=(
-            "> `/giveaway` — Crear un sorteo oficial\n"
-            "> `/giveaway_end <id>` — Terminar sorteo anticipadamente"
-        ), inline=False)
         e.add_field(name="🔄  Transferencias  🔵", value=(
             "> `transfer` — Derivar ticket a otro equipo\n"
             "> `specifictag_staff @staff` — Asignar a un staff específico\n"
@@ -1108,11 +1104,6 @@ def _build_help(guild, member: discord.Member = None):
 
     # ── High Staff ───────────────────────────────────────────────
     if rango in ("high", "head"):
-        e.add_field(name="🎉  Sorteos  🟠", value=(
-            "> `/giveaway` — Crear un sorteo oficial\n"
-            "> `/giveaway_end <id>` — Terminar sorteo anticipadamente\n"
-            "> `/giveaway_reroll <id>` — Elegir nuevo ganador"
-        ), inline=False)
         e.add_field(name="🔎  Logs  🟠", value=(
             "> Tienes acceso al canal **#logs-tickets**\n"
             "> Ahí se registran todos los tickets abiertos y cerrados"
@@ -1120,6 +1111,11 @@ def _build_help(guild, member: discord.Member = None):
 
     # ── Head staff ───────────────────────────────────────────────
     if rango == "head":
+        e.add_field(name="🎉  Sorteos  🔴", value=(
+            "> `/giveaway` — Crear un sorteo oficial\n"
+            "> `/giveaway_end <id>` — Terminar sorteo anticipadamente\n"
+            "> `/giveaway_reroll <id>` — Elegir nuevo ganador"
+        ), inline=False)
         e.add_field(name="🔐  Administración  🔴", value=(
             "> `nm!setup` — Publicar el panel de tickets\n"
             "> `nm!sync` — Registrar slash commands\n"
@@ -1539,15 +1535,17 @@ class GiveawayModal(ui.Modal, title="NightMc  ·  Crear Sorteo"):
 
 @bot.tree.command(name="giveaway", description="Crea un sorteo oficial")
 async def giveaway_slash(interaction: discord.Interaction):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
+    if not tiene_rango_minimo(interaction.user, "Head staff"):
+        return await interaction.response.send_message(
+            "❌  Solo el **Head staff** puede crear sorteos.", ephemeral=True)
     await interaction.response.send_modal(GiveawayModal())
 
 @bot.tree.command(name="giveaway_end", description="Termina un sorteo anticipadamente")
 @discord.app_commands.describe(message_id="ID del mensaje del sorteo")
 async def giveaway_end_slash(interaction: discord.Interaction, message_id: str):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
+    if not tiene_rango_minimo(interaction.user, "Head staff"):
+        return await interaction.response.send_message(
+            "❌  Solo el **Head staff** puede terminar sorteos.", ephemeral=True)
     try:
         mid = int(message_id)
     except ValueError:
@@ -1584,8 +1582,9 @@ async def giveaway_end_slash(interaction: discord.Interaction, message_id: str):
 @bot.tree.command(name="giveaway_reroll", description="Elige un nuevo ganador de un sorteo terminado")
 @discord.app_commands.describe(message_id="ID del mensaje del sorteo terminado")
 async def giveaway_reroll_slash(interaction: discord.Interaction, message_id: str):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
+    if not tiene_rango_minimo(interaction.user, "Head staff"):
+        return await interaction.response.send_message(
+            "❌  Solo el **Head staff** puede hacer reroll.", ephemeral=True)
     await interaction.response.send_message(
         "⚠️  Para hacer reroll contacta a un **Head staff** para revisar los logs del sorteo.",
         ephemeral=True)
