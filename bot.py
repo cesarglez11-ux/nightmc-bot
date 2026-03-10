@@ -311,14 +311,34 @@ def embed_transfer_menu(guild):
     e.title = "🔄  Transferir Expediente"
     e.description = (
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "Selecciona el tipo de gestión que necesitas.\n"
-        "El ticket será redirigido al equipo correcto.\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "👑  **Head staff** — Gestiones críticas\n"
-        "🔰  **High Staff** — Gestiones avanzadas\n"
-        "🚨  **Bug Crítico de Bot** — Escalar problema grave al equipo técnico"
+        "Al transferir este ticket, el equipo especializado\n"
+        "recibirá acceso directo para **apoyar al usuario**.\n"
+        "Selecciona la categoría que mejor describe el caso.\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
-    e.set_footer(text="NightMc Network  ✦  Solo staff puede usar esta función")
+    e.add_field(name="👑  Head staff — Gestiones Críticas", value=(
+        "> 🎖️  **Ganadores de Eventos** — Premio no entregado tras un evento\n"
+        "> 🔐  **Unregister** — Recuperación o desvinculación de cuenta\n"
+        "> 💸  **Reembolso** — Devolución de compra en tienda\n"
+        "> 🚨  **Staff Report** — Reporte formal contra un miembro del staff\n"
+        "> ⚠️  **Error de Configuración** — Fallo en permisos o ajustes del servidor"
+    ), inline=False)
+    e.add_field(name="🔰  High Staff — Gestiones Avanzadas", value=(
+        "> 💊  **Revives** — Recuperación de inventario o estado en juego\n"
+        "> ✏️  **Cambio de Nick** — Modificación del nick vinculado a la cuenta"
+    ), inline=False)
+    e.add_field(name="🚨  Escalación Técnica — Bots", value=(
+        "> 🤖  **Bug Crítico de Bot** — Error grave que afecta el funcionamiento\n"
+        "> ⚙️  El caso será revisado por **Head staff** en canal exclusivo"
+    ), inline=False)
+    e.add_field(name="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", value=(
+        "> ⚠️  Solo transfiere si el caso **supera tus permisos**\n"
+        "> 📋  El usuario será notificado del cambio automáticamente\n"
+        "> 🔒  El ticket se moverá al equipo correspondiente al instante"
+    ), inline=False)
+    e.set_image(url=BANNER_URL)
+    e.set_footer(text="NightMc Network  ✦  Solo staff puede usar esta función",
+                 icon_url=guild.icon.url if guild.icon else None)
     return e
 
 def embed_close(guild):
