@@ -364,7 +364,8 @@ class NightBot(commands.Bot):
     async def setup_hook(self):
         self.add_view(TicketLauncher())
         self.add_view(TicketControl())
-        print("✦  Bot de Tickets listo. Usa !sync para registrar los comandos slash.")
+        self.add_view(GiveawayView())
+        print("✦  Bot de Tickets listo. Usa nm!sync para registrar los comandos slash.")
 
     async def on_ready(self):
         await self.change_presence(activity=discord.Activity(
@@ -1056,6 +1057,10 @@ def _build_help(guild, member: discord.Member = None):
         "> `nm!ping` `/ping` — Ver latencia del bot\n"
         "> `nm!info` `/info` — Ver información del bot\n"
         "> `nm!rules` `/rules` — Ver reglas *(dc = Discord · mc = Minecraft)*\n"
+        "> `/avatar [@usuario]` — Ver avatar de un usuario\n"
+        "> `/banner [@usuario]` — Ver banner de un usuario\n"
+        "> `/userinfo [@usuario]` — Ver info de un usuario\n"
+        "> `/serverinfo` — Ver info del servidor\n"
         "> `nm!help` `/help` — Mostrar este menú de comandos"
     ), inline=False)
 
@@ -1091,6 +1096,10 @@ def _build_help(guild, member: discord.Member = None):
             "> `rename <nombre>` — Renombrar el canal del ticket\n"
             "> `slowmode [seg]` — Activar modo lento *(0 = desactivar)*"
         ), inline=False)
+        e.add_field(name="🎉  Sorteos  🔵", value=(
+            "> `/giveaway` — Crear un sorteo oficial\n"
+            "> `/giveaway_end <id>` — Terminar sorteo anticipadamente"
+        ), inline=False)
         e.add_field(name="🔄  Transferencias  🔵", value=(
             "> `transfer` — Derivar ticket a otro equipo\n"
             "> `specifictag_staff @staff` — Asignar a un staff específico\n"
@@ -1099,6 +1108,11 @@ def _build_help(guild, member: discord.Member = None):
 
     # ── High Staff ───────────────────────────────────────────────
     if rango in ("high", "head"):
+        e.add_field(name="🎉  Sorteos  🟠", value=(
+            "> `/giveaway` — Crear un sorteo oficial\n"
+            "> `/giveaway_end <id>` — Terminar sorteo anticipadamente\n"
+            "> `/giveaway_reroll <id>` — Elegir nuevo ganador"
+        ), inline=False)
         e.add_field(name="🔎  Logs  🟠", value=(
             "> Tienes acceso al canal **#logs-tickets**\n"
             "> Ahí se registran todos los tickets abiertos y cerrados"
@@ -1355,6 +1369,329 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         return await ctx.send("❌  Sin permisos.")
     raise error
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   🎉  GIVEAWAYS
+# ╚═══════════════════════════════════════════════════════════════╝
+giveaways_activos: dict[int, dict] = {}  # message_id → datos
+
+class GiveawayView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(label="Participar", style=discord.ButtonStyle.success,
+               emoji="🎉", custom_id="giveaway_join")
+    async def join(self, interaction: discord.Interaction, button: ui.Button):
+        mid = interaction.message.id
+        if mid not in giveaways_activos:
+            return await interaction.response.send_message(
+                "❌  Este sorteo ya no está activo.", ephemeral=True)
+        gw = giveaways_activos[mid]
+        uid = interaction.user.id
+        if uid in gw["participantes"]:
+            gw["participantes"].discard(uid)
+            await interaction.response.send_message(
+                "↩️  Has **salido** del sorteo.", ephemeral=True)
+        else:
+            gw["participantes"].add(uid)
+            await interaction.response.send_message(
+                "✅  ¡Estás participando en el sorteo! Buena suerte 🍀", ephemeral=True)
+        # Actualizar embed con contador
+        embed = interaction.message.embeds[0]
+        for i, field in enumerate(embed.fields):
+            if "Participantes" in field.name:
+                embed.set_field_at(i, name=field.name,
+                    value=f"> **{len(gw['participantes'])}** personas participando",
+                    inline=field.inline)
+                break
+        await interaction.message.edit(embed=embed)
+
+def _build_giveaway_embed(guild, prize, duration_str, winners, host, ends_at):
+    e = discord.Embed(color=0xf1c40f)
+    e.set_author(name="🎊  NightMc Network — Sorteo Oficial",
+                 icon_url=guild.icon.url if guild.icon else None)
+    e.title = f"🎁  {prize}"
+    e.description = (
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"¡Pulsa el botón 🎉 para participar!\n"
+        f"Puedes salir del sorteo volviendo a pulsarlo.\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    e.add_field(name="🏆  Premio",        value=f"> **{prize}**",              inline=True)
+    e.add_field(name="🥇  Ganadores",     value=f"> **{winners}** ganador{'es' if winners > 1 else ''}",    inline=True)
+    e.add_field(name="⏱️  Duración",      value=f"> **{duration_str}**",       inline=True)
+    e.add_field(name="👥  Participantes", value="> **0** personas participando", inline=True)
+    e.add_field(name="🎙️  Organizado por", value=f"> {host.mention}",          inline=True)
+    e.add_field(name="⏰  Termina",       value=f"> <t:{int(ends_at.timestamp())}:R>", inline=True)
+    e.add_field(name="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", value=(
+        "> 🔹 Un solo registro por persona\n"
+        "> 🔹 Debes estar en el servidor al momento del sorteo\n"
+        "> 🔹 El staff puede descalificar participantes"
+    ), inline=False)
+    e.set_image(url=BANNER_URL)
+    e.set_footer(text="© Powered by NightMC  ✦  ¡Buena suerte a todos!",
+                 icon_url=guild.icon.url if guild.icon else None)
+    return e
+
+class GiveawayModal(ui.Modal, title="NightMc  ·  Crear Sorteo"):
+    premio    = ui.TextInput(label="Premio", placeholder="Ej: Rango VIP, 10€ tienda, etc.")
+    duracion  = ui.TextInput(label="Duración", placeholder="Ej: 1h, 30m, 2d, 1h30m")
+    ganadores = ui.TextInput(label="Número de ganadores", placeholder="Ej: 1", default="1")
+    requisito = ui.TextInput(label="Requisito (opcional)", placeholder="Ej: Tener rango Member",
+                             required=False)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Parsear duración
+        import re
+        raw = self.duracion.value.strip().lower()
+        total_seconds = 0
+        for valor, unidad in re.findall(r'(\d+)(d|h|m|s)', raw):
+            v = int(valor)
+            if unidad == 'd': total_seconds += v * 86400
+            elif unidad == 'h': total_seconds += v * 3600
+            elif unidad == 'm': total_seconds += v * 60
+            elif unidad == 's': total_seconds += v
+        if total_seconds == 0:
+            return await interaction.response.send_message(
+                "❌  Duración inválida. Usa formato como `1h`, `30m`, `2d`, `1h30m`.", ephemeral=True)
+
+        try:
+            num_ganadores = max(1, int(self.ganadores.value.strip()))
+        except ValueError:
+            num_ganadores = 1
+
+        # Texto de duración legible
+        partes = []
+        d, rem = divmod(total_seconds, 86400)
+        h, rem = divmod(rem, 3600)
+        m, s   = divmod(rem, 60)
+        if d: partes.append(f"{d}d")
+        if h: partes.append(f"{h}h")
+        if m: partes.append(f"{m}m")
+        if s: partes.append(f"{s}s")
+        dur_str = " ".join(partes)
+
+        ends_at = datetime.datetime.now() + datetime.timedelta(seconds=total_seconds)
+        embed   = _build_giveaway_embed(
+            interaction.guild, self.premio.value,
+            dur_str, num_ganadores, interaction.user, ends_at)
+
+        if self.requisito.value:
+            embed.add_field(name="📋  Requisito", value=f"> {self.requisito.value}", inline=False)
+
+        await interaction.response.send_message("✅  Sorteo creado.", ephemeral=True)
+        msg = await interaction.channel.send(
+            content="@everyone  🎉  **¡NUEVO SORTEO EN NIGHTMC!**",
+            embed=embed, view=GiveawayView())
+
+        giveaways_activos[msg.id] = {
+            "participantes": set(),
+            "ganadores":     num_ganadores,
+            "premio":        self.premio.value,
+            "ends_at":       ends_at,
+            "host":          interaction.user.id,
+            "channel_id":    interaction.channel.id,
+            "guild_id":      interaction.guild.id,
+        }
+
+        # Tarea que termina el sorteo automáticamente
+        async def finalizar():
+            await asyncio.sleep(total_seconds)
+            gw = giveaways_activos.pop(msg.id, None)
+            if not gw:
+                return
+            guild   = bot.get_guild(gw["guild_id"])
+            channel = bot.get_channel(gw["channel_id"])
+            if not guild or not channel:
+                return
+            participantes = list(gw["participantes"])
+            import random
+            e_final = discord.Embed(color=0xed4245)
+            e_final.set_author(name="🎊  NightMc Network — Sorteo Finalizado",
+                               icon_url=guild.icon.url if guild.icon else None)
+            e_final.title = f"🎁  {gw['premio']}"
+            if not participantes:
+                e_final.description = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n❌  Nadie participó en este sorteo.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                e_final.set_image(url=BANNER_URL)
+                e_final.set_footer(text="© Powered by NightMC")
+                await msg.edit(embed=e_final, view=None)
+                await channel.send("😢  Nadie participó en el sorteo. Se cancela.")
+                return
+            ganadores_ids = random.sample(participantes, min(gw["ganadores"], len(participantes)))
+            menciones     = " ".join(f"<@{uid}>" for uid in ganadores_ids)
+            e_final.description = (
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"¡El sorteo ha terminado!\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            )
+            e_final.add_field(name="🏆  Premio",      value=f"> **{gw['premio']}**",                    inline=True)
+            e_final.add_field(name="👥  Participaron", value=f"> **{len(participantes)}** personas",     inline=True)
+            e_final.add_field(name="🥇  Ganador(es)", value=f"> {menciones}",                           inline=False)
+            e_final.set_image(url=BANNER_URL)
+            e_final.set_footer(text="© Powered by NightMC  ✦  ¡Felicidades!",
+                               icon_url=guild.icon.url if guild.icon else None)
+            await msg.edit(embed=e_final, view=None)
+            await channel.send(
+                f"🎉🎊  ¡Felicidades {menciones}! Ganaste **{gw['premio']}**.\n"
+                f"Contacta al staff para reclamar tu premio.")
+
+        asyncio.create_task(finalizar())
+
+@bot.tree.command(name="giveaway", description="Crea un sorteo oficial")
+async def giveaway_slash(interaction: discord.Interaction):
+    if not es_staff(interaction.user):
+        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
+    await interaction.response.send_modal(GiveawayModal())
+
+@bot.tree.command(name="giveaway_end", description="Termina un sorteo anticipadamente")
+@discord.app_commands.describe(message_id="ID del mensaje del sorteo")
+async def giveaway_end_slash(interaction: discord.Interaction, message_id: str):
+    if not es_staff(interaction.user):
+        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
+    try:
+        mid = int(message_id)
+    except ValueError:
+        return await interaction.response.send_message("❌  ID inválido.", ephemeral=True)
+    if mid not in giveaways_activos:
+        return await interaction.response.send_message("❌  No se encontró un sorteo activo con ese ID.", ephemeral=True)
+    gw      = giveaways_activos.pop(mid)
+    guild   = interaction.guild
+    channel = interaction.channel
+    import random
+    participantes = list(gw["participantes"])
+    msg     = await channel.fetch_message(mid)
+    e_final = discord.Embed(color=0xed4245)
+    e_final.set_author(name="🎊  NightMc Network — Sorteo Finalizado",
+                       icon_url=guild.icon.url if guild.icon else None)
+    e_final.title = f"🎁  {gw['premio']}"
+    if not participantes:
+        e_final.description = "❌  Nadie participó en este sorteo."
+        await msg.edit(embed=e_final, view=None)
+        return await interaction.response.send_message("😢  Nadie participó.", ephemeral=True)
+    ganadores_ids = random.sample(participantes, min(gw["ganadores"], len(participantes)))
+    menciones     = " ".join(f"<@{uid}>" for uid in ganadores_ids)
+    e_final.description = "¡El sorteo ha terminado anticipadamente!"
+    e_final.add_field(name="🏆  Premio",      value=f"> **{gw['premio']}**",                inline=True)
+    e_final.add_field(name="👥  Participaron", value=f"> **{len(participantes)}** personas", inline=True)
+    e_final.add_field(name="🥇  Ganador(es)", value=f"> {menciones}",                       inline=False)
+    e_final.set_image(url=BANNER_URL)
+    e_final.set_footer(text="© Powered by NightMC  ✦  ¡Felicidades!",
+                       icon_url=guild.icon.url if guild.icon else None)
+    await msg.edit(embed=e_final, view=None)
+    await channel.send(f"🎉  ¡Felicidades {menciones}! Ganaste **{gw['premio']}**.")
+    await interaction.response.send_message("✅  Sorteo finalizado.", ephemeral=True)
+
+@bot.tree.command(name="giveaway_reroll", description="Elige un nuevo ganador de un sorteo terminado")
+@discord.app_commands.describe(message_id="ID del mensaje del sorteo terminado")
+async def giveaway_reroll_slash(interaction: discord.Interaction, message_id: str):
+    if not es_staff(interaction.user):
+        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
+    await interaction.response.send_message(
+        "⚠️  Para hacer reroll contacta a un **Head staff** para revisar los logs del sorteo.",
+        ephemeral=True)
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   👤  PERFIL — AVATAR / BANNER / USERINFO / SERVERINFO
+# ╚═══════════════════════════════════════════════════════════════╝
+@bot.tree.command(name="avatar", description="Muestra el avatar de un usuario")
+@discord.app_commands.describe(usuario="Usuario del que ver el avatar (vacío = tú mismo)")
+async def avatar_slash(interaction: discord.Interaction, usuario: discord.Member = None):
+    target = usuario or interaction.user
+    e = discord.Embed(color=COLOR_BLUE)
+    e.set_author(name=f"🖼️  Avatar de {target.display_name}",
+                 icon_url=target.display_avatar.url)
+    e.description = (
+        f"> 👤  **{target.display_name}** (`{target.name}`)\n"
+        f"> 🆔  `{target.id}`"
+    )
+    formats = []
+    base = target.display_avatar.url
+    for fmt in ["png", "jpg", "webp"]:
+        formats.append(f"[{fmt.upper()}]({target.display_avatar.with_format(fmt).url})")
+    if target.display_avatar.is_animated():
+        formats.append(f"[GIF]({target.display_avatar.with_format('gif').url})")
+    e.add_field(name="📥  Descargar", value=" · ".join(formats), inline=False)
+    e.set_image(url=target.display_avatar.with_size(1024).url)
+    e.set_footer(text=FOOTER, icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+    await interaction.response.send_message(embed=e)
+
+@bot.tree.command(name="banner", description="Muestra el banner de un usuario")
+@discord.app_commands.describe(usuario="Usuario del que ver el banner (vacío = tú mismo)")
+async def banner_slash(interaction: discord.Interaction, usuario: discord.Member = None):
+    target = usuario or interaction.user
+    await interaction.response.defer()
+    try:
+        user_fetch = await bot.fetch_user(target.id)
+    except Exception:
+        return await interaction.followup.send("❌  No se pudo obtener el perfil.", ephemeral=True)
+    if not user_fetch.banner:
+        return await interaction.followup.send(
+            f"❌  **{target.display_name}** no tiene banner de perfil.", ephemeral=True)
+    e = discord.Embed(color=user_fetch.accent_color or COLOR_BLUE)
+    e.set_author(name=f"🎨  Banner de {target.display_name}",
+                 icon_url=target.display_avatar.url)
+    e.description = (
+        f"> 👤  **{target.display_name}** (`{target.name}`)\n"
+        f"> 🆔  `{target.id}`"
+    )
+    formats = []
+    for fmt in ["png", "jpg", "webp"]:
+        formats.append(f"[{fmt.upper()}]({user_fetch.banner.with_format(fmt).url})")
+    if user_fetch.banner.is_animated():
+        formats.append(f"[GIF]({user_fetch.banner.with_format('gif').url})")
+    e.add_field(name="📥  Descargar", value=" · ".join(formats), inline=False)
+    e.set_image(url=user_fetch.banner.with_size(1024).url)
+    e.set_footer(text=FOOTER, icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+    await interaction.followup.send(embed=e)
+
+@bot.tree.command(name="userinfo", description="Muestra información de un usuario")
+@discord.app_commands.describe(usuario="Usuario del que ver la info (vacío = tú mismo)")
+async def userinfo_slash(interaction: discord.Interaction, usuario: discord.Member = None):
+    target = usuario or interaction.user
+    roles  = [r.mention for r in reversed(target.roles) if r.name != "@everyone"]
+    e = discord.Embed(color=target.color if target.color.value else COLOR_BLUE)
+    e.set_author(name=f"👤  Información de {target.display_name}",
+                 icon_url=target.display_avatar.url)
+    e.set_thumbnail(url=target.display_avatar.url)
+    e.add_field(name="🏷️  Nombre",        value=f"> `{target.name}`",                                        inline=True)
+    e.add_field(name="🎭  Apodo",          value=f"> `{target.nick or '—'}`",                                 inline=True)
+    e.add_field(name="🆔  ID",             value=f"> `{target.id}`",                                          inline=True)
+    e.add_field(name="📅  Cuenta creada",  value=f"> <t:{int(target.created_at.timestamp())}:D>",             inline=True)
+    e.add_field(name="📥  Entró al server",value=f"> <t:{int(target.joined_at.timestamp())}:D>",              inline=True)
+    e.add_field(name="🤖  Bot",            value=f"> {'Sí' if target.bot else 'No'}",                         inline=True)
+    e.add_field(name="🎨  Color del rol",  value=f"> `{str(target.color)}` " if target.color.value else "> `Sin color`", inline=True)
+    e.add_field(name="⚡  Estado",         value=f"> `{str(target.status).capitalize()}`" if hasattr(target, 'status') else "> `—`", inline=True)
+    if roles:
+        roles_str = " ".join(roles[:15])
+        if len(roles) > 15:
+            roles_str += f" *+{len(roles)-15} más*"
+        e.add_field(name=f"🏅  Roles ({len(roles)})", value=roles_str, inline=False)
+    e.set_footer(text=FOOTER, icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+    await interaction.response.send_message(embed=e)
+
+@bot.tree.command(name="serverinfo", description="Muestra información del servidor")
+async def serverinfo_slash(interaction: discord.Interaction):
+    guild  = interaction.guild
+    total  = guild.member_count
+    bots   = sum(1 for m in guild.members if m.bot)
+    humanos= total - bots
+    e = discord.Embed(color=COLOR_BLUE)
+    e.set_author(name=f"🏰  {guild.name}",
+                 icon_url=guild.icon.url if guild.icon else None)
+    e.set_thumbnail(url=guild.icon.url if guild.icon else None)
+    e.add_field(name="🆔  ID",             value=f"> `{guild.id}`",                                      inline=True)
+    e.add_field(name="👑  Dueño",          value=f"> {guild.owner.mention}",                             inline=True)
+    e.add_field(name="📅  Creado",         value=f"> <t:{int(guild.created_at.timestamp())}:D>",         inline=True)
+    e.add_field(name="👥  Miembros",       value=f"> 👤 **{humanos}** humanos\n> 🤖 **{bots}** bots\n> 📊 **{total}** total", inline=True)
+    e.add_field(name="📢  Canales",        value=f"> 💬 **{len(guild.text_channels)}** texto\n> 🔊 **{len(guild.voice_channels)}** voz\n> 📁 **{len(guild.categories)}** categorías", inline=True)
+    e.add_field(name="🎭  Roles",          value=f"> **{len(guild.roles)}** roles",                      inline=True)
+    e.add_field(name="🚀  Boost",          value=f"> Nivel **{guild.premium_tier}**\n> **{guild.premium_subscription_count}** boosts", inline=True)
+    e.add_field(name="🌍  Región",         value=f"> `{str(guild.preferred_locale)}`",                   inline=True)
+    e.add_field(name="🔒  Verificación",   value=f"> `{str(guild.verification_level).capitalize()}`",    inline=True)
+    if guild.banner:
+        e.set_image(url=guild.banner.with_size(1024).url)
+    e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
+    await interaction.response.send_message(embed=e)
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🚀  ARRANQUE
