@@ -34,7 +34,7 @@ CAT_POSTULACION  = "📋 Postulaciones Staff"
 CAT_ALIANZA      = "🤝 Alianzas"
 CAT_EVENTO       = "🎉 Eventos"
 CAT_TRANSFER     = "🔄 TRANSFERIDOS"
-LOGS_CANAL       = "ticket-logs"
+LOGS_CANAL       = "logs-tickets"
 
 CATEGORIAS_TICKET = {
     "soporte":      CAT_SOPORTE,
@@ -333,7 +333,7 @@ def embed_setup(guild):
                 value="> Nuestro equipo te atenderá **lo antes posible**.", inline=False)
     e.add_field(name="🎙️  ¿Prefieres atención por voz?", value=(
         "> También ofrecemos soporte en **canales de voz**.\n"
-        "> Entra en **<#1471893022630219920>** y un miembro del\n"
+        "> Entra en **┋ Sala de Espera** y un miembro del\n"
         "> **Staff Team** te atenderá cuando esté disponible.\n"
         "> *No garantizamos atención 24/7 por voz, pero siempre lo intentamos.*"
     ), inline=False)
@@ -356,7 +356,7 @@ class NightBot(commands.Bot):
         intents = discord.Intents.default()
         intents.message_content = True
         intents.members = True
-        super().__init__(command_prefix="!", intents=intents, help_command=None)
+        super().__init__(command_prefix="nm!", intents=intents, help_command=None)
         self._ticket_msg_ids: dict[int, int] = {}
         self._claimed_channels: dict[int, int] = {}
         self._last_rename: dict[int, float] = {}
@@ -422,12 +422,16 @@ async def get_o_crear_logs(guild):
         if not cat:
             cat = await guild.create_category("📋 LOGS")
         rol_st = discord.utils.get(guild.roles, name=STAFF_TEAM)
+        rol_high = discord.utils.get(guild.roles, name="High Staff")
+        rol_head = discord.utils.get(guild.roles, name="Head staff")
         perms  = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             guild.me:           discord.PermissionOverwrite(read_messages=True, send_messages=True),
         }
-        if rol_st:
-            perms[rol_st] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
+        if rol_high:
+            perms[rol_high] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
+        if rol_head:
+            perms[rol_head] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
         return await guild.create_text_channel(LOGS_CANAL, category=cat, overwrites=perms)
     except Exception:
         return None
@@ -1027,49 +1031,95 @@ async def specifictag_role(interaction: discord.Interaction, rol: discord.Role):
     log_e.set_footer(text=FOOTER)
     await enviar_log(guild, log_e)
 
-def _build_help(guild):
+def _get_rango(member: discord.Member) -> str:
+    roles = [r.name for r in member.roles]
+    if "Head staff" in roles:       return "head"
+    if "High Staff" in roles:       return "high"
+    if "Medium Staff" in roles:     return "medium"
+    if "Low staff" in roles:        return "low"
+    if "Staff team" in roles:       return "staff"
+    if "| Soporte" in roles:        return "soporte"
+    return "usuario"
+
+def _build_help(guild, member: discord.Member = None):
+    rango = _get_rango(member) if member else "usuario"
+
     e = discord.Embed(color=COLOR_BLUE)
     e.set_author(name="NightMc Network  ✦  Centro de Comandos",
                  icon_url=guild.icon.url if guild.icon else None)
     e.title = "📋  Guía de Comandos — NightMc Tickets"
-    e.description = (
-        "Todos los comandos funcionan con `/` **y** con `!` indistintamente.\n"
-        f"{SEP}\n"
-        "🟢 = Cualquier usuario  ·  🔵 = Staff  ·  🟠 = High Staff  ·  🔴 = Head staff\n"
-        f"{SEP}"
-    )
-    e.add_field(name="🎫  Gestión de Tickets  🔵", value=(
-        "> `claim` — Reclamar y tomar control del ticket\n"
-        "> `close` — Cerrar y eliminar el ticket\n"
-        "> `transcript` — Generar transcript del historial"
-    ), inline=False)
-    e.add_field(name="👥  Usuarios en Ticket  🔵", value=(
-        "> `add @usuario` — Añadir un usuario al ticket\n"
-        "> `remove @usuario` — Eliminar un usuario del ticket"
-    ), inline=False)
-    e.add_field(name="⚙️  Canal  🔵", value=(
-        "> `rename <nombre>` — Renombrar el canal del ticket\n"
-        "> `slowmode [seg]` — Activar modo lento *(0 = desactivar)*"
-    ), inline=False)
-    e.add_field(name="🔄  Transferencias  🔵", value=(
-        "> `transfer` — Derivar ticket a otro equipo de staff\n"
-        "> `specifictag_staff @staff` — Asignar ticket a un staff específico\n"
-        "> `specifictag_role @rol` — Asignar ticket a un rol específico"
-    ), inline=False)
-    e.add_field(name="🌐  Información  🟢", value=(
-        "> `ip` — Ver IPs y modalidades del servidor\n"
-        "> `help` — Mostrar este menú de comandos"
-    ), inline=False)
-    e.add_field(name="🔐  Administración  🔴", value=(
-        "> `!setup` — Publicar el panel de tickets en un canal\n"
-        "> `!sync` — Registrar los slash commands en el servidor\n"
-        "> ⚠️  *Estos comandos requieren permiso de* ***Administrador***"
-    ), inline=False)
-    e.add_field(name=SEP, value=(
-        "> 💡  Si un comando no responde, intenta con el prefijo `!`\n"
-        "> 📩  Para soporte técnico del bot contacta al **Head staff**"
-    ), inline=False)
     e.set_image(url=BANNER_URL)
+
+    # ── Todos ────────────────────────────────────────────────────
+    e.add_field(name="🌐  Información  🟢", value=(
+        "> `nm!ip` `/ip` — Ver IPs y modalidades del servidor\n"
+        "> `nm!help` `/help` — Mostrar este menú de comandos"
+    ), inline=False)
+
+    # ── | Soporte ────────────────────────────────────────────────
+    if rango == "soporte":
+        e.description = (
+            f"Hola {member.mention}, puedes **ver** los tickets pero no interactuar con ellos.\n"
+            f"{SEP}\n"
+            f"> ℹ️  Para más permisos habla con un **Head staff**."
+        )
+        e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
+        return e
+
+    # ── Staff base (Low, Medium, Staff team) ────────────────────
+    if rango in ("low", "medium", "staff", "high", "head"):
+        e.description = (
+            f"Comandos disponibles para tu rango.\n"
+            f"Prefijo: `nm!` · Slash: `/`\n"
+            f"{SEP}\n"
+            f"🟢 = Todos  ·  🔵 = Staff  ·  🟠 = High Staff  ·  🔴 = Head staff\n"
+            f"{SEP}"
+        )
+        e.add_field(name="🎫  Gestión de Tickets  🔵", value=(
+            "> `claim` — Reclamar y tomar control del ticket\n"
+            "> `close` — Cerrar y eliminar el ticket\n"
+            "> `transcript` — Generar transcript del historial"
+        ), inline=False)
+        e.add_field(name="👥  Usuarios en Ticket  🔵", value=(
+            "> `add @usuario` — Añadir un usuario al ticket\n"
+            "> `remove @usuario` — Eliminar un usuario del ticket"
+        ), inline=False)
+        e.add_field(name="⚙️  Canal  🔵", value=(
+            "> `rename <nombre>` — Renombrar el canal del ticket\n"
+            "> `slowmode [seg]` — Activar modo lento *(0 = desactivar)*"
+        ), inline=False)
+        e.add_field(name="🔄  Transferencias  🔵", value=(
+            "> `transfer` — Derivar ticket a otro equipo\n"
+            "> `specifictag_staff @staff` — Asignar a un staff específico\n"
+            "> `specifictag_role @rol` — Asignar a un rol específico"
+        ), inline=False)
+
+    # ── High Staff ───────────────────────────────────────────────
+    if rango in ("high", "head"):
+        e.add_field(name="🔎  Logs  🟠", value=(
+            "> Tienes acceso al canal **#logs-tickets**\n"
+            "> Ahí se registran todos los tickets abiertos y cerrados"
+        ), inline=False)
+
+    # ── Head staff ───────────────────────────────────────────────
+    if rango == "head":
+        e.add_field(name="🔐  Administración  🔴", value=(
+            "> `nm!setup` — Publicar el panel de tickets\n"
+            "> `nm!sync` — Registrar slash commands\n"
+            "> ⚠️  *Requieren permiso de* ***Administrador***"
+        ), inline=False)
+
+    # ── Usuario sin staff ────────────────────────────────────────
+    if rango == "usuario":
+        e.description = (
+            f"Comandos disponibles para ti.\n"
+            f"{SEP}"
+        )
+
+    e.add_field(name=SEP, value=(
+        "> 💡  Si un comando no responde intenta con el prefijo `nm!`\n"
+        "> 📩  Para soporte técnico contacta al **Head staff**"
+    ), inline=False)
     e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
     return e
 
@@ -1087,7 +1137,7 @@ def _build_ip_embed():
 
 @bot.tree.command(name="help", description="Muestra todos los comandos disponibles")
 async def help_slash(interaction: discord.Interaction):
-    await interaction.response.send_message(embed=_build_help(interaction.guild), ephemeral=True)
+    await interaction.response.send_message(embed=_build_help(interaction.guild, interaction.user), ephemeral=True)
 
 @bot.tree.command(name="ip", description="Muestra las IPs para conectarte al servidor")
 async def ip_slash(interaction: discord.Interaction):
@@ -1188,7 +1238,7 @@ async def slowmode_prefix(ctx, segundos: int = 0):
 
 @bot.command(name="help", aliases=["ayuda"])
 async def help_prefix(ctx):
-    await ctx.send(embed=_build_help(ctx.guild))
+    await ctx.send(embed=_build_help(ctx.guild, ctx.author))
 
 @bot.command(name="ip")
 async def ip_prefix(ctx):
