@@ -738,7 +738,7 @@ class TransferView(ui.View):
         discord.SelectOption(label="Bug Crítico de Bot",      value="bug-bot-critico",
             emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
         discord.SelectOption(label="Ver Owner del Ticket",    value="ver-owner",
-            emoji="👁️", description="👑 Head staff — Ver quién abrió este ticket"),
+            emoji="🔎", description="👑 Head staff — Ver quién abrió este ticket"),
     ])
     async def select_callback(self, interaction: discord.Interaction, select: ui.Select):
         destino  = select.values[0]
