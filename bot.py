@@ -1601,9 +1601,6 @@ def tiene_rango_minimo(member: discord.Member, nombre_rol_minimo: str) -> bool:
 @bot.tree.command(name="avatar", description="Muestra el avatar de un usuario")
 @discord.app_commands.describe(usuario="Usuario del que ver el avatar (vacío = tú mismo)")
 async def avatar_slash(interaction: discord.Interaction, usuario: discord.Member = None):
-    if not tiene_rango_minimo(interaction.user, "| Galaxy"):
-        return await interaction.response.send_message(
-            "❌  Necesitas el rango **| Galaxy** o superior para usar este comando.", ephemeral=True)
     target = usuario or interaction.user
     e = discord.Embed(color=COLOR_BLUE)
     e.set_author(name=f"🖼️  Avatar de {target.display_name}",
@@ -1626,9 +1623,6 @@ async def avatar_slash(interaction: discord.Interaction, usuario: discord.Member
 @bot.tree.command(name="banner", description="Muestra el banner de un usuario")
 @discord.app_commands.describe(usuario="Usuario del que ver el banner (vacío = tú mismo)")
 async def banner_slash(interaction: discord.Interaction, usuario: discord.Member = None):
-    if not tiene_rango_minimo(interaction.user, "| Galaxy"):
-        return await interaction.response.send_message(
-            "❌  Necesitas el rango **| Galaxy** o superior para usar este comando.", ephemeral=True)
     target = usuario or interaction.user
     await interaction.response.defer()
     try:
