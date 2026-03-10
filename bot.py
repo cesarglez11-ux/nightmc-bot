@@ -719,29 +719,35 @@ class TransferView(ui.View):
     def __init__(self, owner_id: int = 0):
         super().__init__(timeout=180)
         self.owner_id = owner_id
+        select = ui.Select(
+            placeholder="✦  Selecciona el tipo de gestión...",
+            options=[
+                discord.SelectOption(label="Ganadores de Eventos",   value="ganadores-eventos",
+                    emoji="🎖️", description="👑 Head staff — Premio no entregado"),
+                discord.SelectOption(label="Unregister",             value="unregister",
+                    emoji="🔐", description="👑 Head staff — Recuperación de cuenta"),
+                discord.SelectOption(label="Reembolso",              value="reembolso",
+                    emoji="💸", description="👑 Head staff — Reembolso tienda"),
+                discord.SelectOption(label="Staff Report",           value="staff-report",
+                    emoji="🚨", description="👑 Head staff — Reportar a un staff"),
+                discord.SelectOption(label="Error de Configuración", value="error-config",
+                    emoji="⚠️", description="👑 Head staff — Error de config/permisos"),
+                discord.SelectOption(label="Revives",                value="revives",
+                    emoji="💊", description="🔰 High staff — Recuperar inventario"),
+                discord.SelectOption(label="Cambio de Nick",         value="cambio-nick",
+                    emoji="✏️", description="🔰 High staff — Cambiar nick vinculado"),
+                discord.SelectOption(label="Bug Critico de Bot",     value="bug-bot-critico",
+                    emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
+                discord.SelectOption(label="Ver Owner del Ticket",   value="ver-owner",
+                    emoji="🔎", description="👑 Head staff — Ver quien abrio este ticket"),
+            ]
+        )
+        select.callback = self.select_callback
+        self.add_item(select)
 
-    @ui.select(placeholder="✦  Selecciona el tipo de gestión...", options=[
-        discord.SelectOption(label="Ganadores de Eventos",    value="ganadores-eventos",
-            emoji="🎖️", description="👑 Head staff — Premio no entregado"),
-        discord.SelectOption(label="Unregister",              value="unregister",
-            emoji="🔐", description="👑 Head staff — Recuperación de cuenta"),
-        discord.SelectOption(label="Reembolso",               value="reembolso",
-            emoji="💸", description="👑 Head staff — Reembolso tienda"),
-        discord.SelectOption(label="Staff Report",            value="staff-report",
-            emoji="🚨", description="👑 Head staff — Reportar a un staff"),
-        discord.SelectOption(label="Error de Configuración",  value="error-config",
-            emoji="⚠️", description="👑 Head staff — Error de config/permisos"),
-        discord.SelectOption(label="Revives",                 value="revives",
-            emoji="💊", description="🔰 Hight staff — Recuperar inventario"),
-        discord.SelectOption(label="Cambio de Nick",          value="cambio-nick",
-            emoji="✏️", description="🔰 Hight staff — Cambiar nick vinculado"),
-        discord.SelectOption(label="Bug Crítico de Bot",      value="bug-bot-critico",
-            emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
-        discord.SelectOption(label="Ver Owner del Ticket",    value="ver-owner",
-            emoji="🔎", description="👑 Head staff — Ver quién abrió este ticket"),
-    ])
-    async def select_callback(self, interaction: discord.Interaction, select: ui.Select):
-        destino  = select.values[0]
+    async def select_callback(self, interaction: discord.Interaction):
+        select  = interaction.data["values"]
+        destino = select[0]
 
         # ── Ver Owner — solo Head staff, no mueve el ticket ──
         if destino == "ver-owner":
