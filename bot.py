@@ -33,6 +33,7 @@ CAT_PAGOS        = "💰 Pagos Tienda"
 CAT_POSTULACION  = "📋 Postulaciones Staff"
 CAT_ALIANZA      = "🤝 Alianzas"
 CAT_EVENTO       = "🎉 Eventos"
+CAT_BOTS         = "🤖 Soporte Bots"
 CAT_TRANSFER     = "🔄 TRANSFERIDOS"
 LOGS_CANAL       = "logs-tickets"
 
@@ -44,6 +45,7 @@ CATEGORIAS_TICKET = {
     "postulacion":  CAT_POSTULACION,
     "alianza":      CAT_ALIANZA,
     "evento":       CAT_EVENTO,
+    "bots":         CAT_BOTS,
 }
 ROLES_TICKET = {
     "soporte":      (None,           True),
@@ -53,6 +55,7 @@ ROLES_TICKET = {
     "postulacion":  ("Medium Staff", True),
     "alianza":      ("Head staff",   False),
     "evento":       ("Low staff",    True),
+    "bots":         ("Low staff",    True),
 }
 MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
@@ -242,6 +245,29 @@ def embed_ticket_evento(guild, user, rol_tag, campos):
     e.set_image(url=BANNER_URL)
     return _footer(e, guild)
 
+def embed_ticket_bots(guild, user, rol_tag, campos):
+    e = discord.Embed(color=0x5865f2)
+    e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
+    e.title = "🤖  Soporte de Bots — NightMC Network"
+    e.description = (
+        f"Buenas {user.mention}. Tu reporte sobre un bot será revisado por {rol_tag}.\n"
+        f"Describe el problema con el mayor detalle posible para agilizar la solución."
+    )
+    e.add_field(name=SEP, value="\u200b", inline=False)
+    e.add_field(name="👤  Staff responsable",  value=f"> {rol_tag}",                                    inline=False)
+    e.add_field(name="🤖  Bot afectado",       value=f"```{campos.get('Bot','—')}```",                  inline=True)
+    e.add_field(name="🎮  Tu nick",            value=f"```{campos.get('Nick','—')}```",                 inline=True)
+    e.add_field(name="⚠️  Problema",           value=f"```{campos.get('Problema','—')}```",             inline=False)
+    e.add_field(name="🔁  ¿Se puede reproducir?", value=f"```{campos.get('Reproducible','—')}```",     inline=False)
+    e.add_field(name=SEP, value=(
+        "> 📸  Adjunta capturas o vídeos del error si los tienes.\n"
+        "> 🔍  El equipo revisará el problema e intentará replicarlo.\n"
+        "> 🙏  Gracias por ayudar a mejorar **NightMC Network**."
+    ), inline=False)
+    e.set_thumbnail(url=user.display_avatar.url)
+    e.set_image(url=BANNER_URL)
+    return _footer(e, guild)
+
 EMBED_TICKET = {
     "soporte":      embed_ticket_soporte,
     "reporte":      embed_ticket_reporte,
@@ -250,6 +276,7 @@ EMBED_TICKET = {
     "postulacion":  embed_ticket_postulacion,
     "alianza":      embed_ticket_alianza,
     "evento":       embed_ticket_evento,
+    "bots":         embed_ticket_bots,
 }
 
 def embed_claimed(user, guild):
@@ -320,6 +347,7 @@ def embed_setup(guild):
         "┃  📋  **Postulaciones Staff** — Dudas sobre el proceso de postulación\n"
         "┃  🤝  **Alianzas** — Propuestas de colaboración\n"
         "┃  🎉  **Eventos** — Premios no recibidos, participación\n"
+        "┃  🤖  **Soporte de Bots** — Bugs o errores en los bots\n"
         "\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     )
@@ -798,6 +826,19 @@ class EventoModal(ui.Modal, title="NightMc  ·  Soporte de Eventos"):
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎡  MENÚ PRINCIPAL — Dropdown
 # ╚═══════════════════════════════════════════════════════════════╝
+class BotsModal(ui.Modal, title="NightMc  ·  Soporte de Bots"):
+    bot_nombre   = ui.TextInput(label="Bot afectado",   placeholder="¿Qué bot está fallando?")
+    nick         = ui.TextInput(label="Tu nick",         placeholder="Tu nick en Minecraft o Discord")
+    problema     = ui.TextInput(label="Problema",        placeholder="Describe qué está pasando con detalle",
+                                style=discord.TextStyle.paragraph)
+    reproducible = ui.TextInput(label="¿Se puede reproducir?", placeholder="Ej: Sí, cada vez que uso /comando",
+                                style=discord.TextStyle.paragraph, required=False)
+    async def on_submit(self, i):
+        await crear_ticket(i, "bots",
+            {"Bot": self.bot_nombre.value, "Nick": self.nick.value,
+             "Problema": self.problema.value,
+             "Reproducible": self.reproducible.value or "No especificado"}, "bots")
+
 class TicketLauncher(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -819,6 +860,8 @@ class TicketLauncher(ui.View):
                        emoji="🤝", description="Propuestas de colaboración"),
                    discord.SelectOption(label="Eventos",              value="evento",
                        emoji="🎉", description="Premios no recibidos, participación"),
+                   discord.SelectOption(label="Soporte de Bots",      value="bots",
+                       emoji="🤖", description="Bugs, errores o mal funcionamiento de bots"),
                ])
     async def callback(self, interaction: discord.Interaction, select: ui.Select):
         modales = {
@@ -829,6 +872,7 @@ class TicketLauncher(ui.View):
             "postulacion":  PostulacionModal(),
             "alianza":      AlianzaModal(),
             "evento":       EventoModal(),
+            "bots":         BotsModal(),
         }
         await interaction.response.send_modal(modales[select.values[0]])
 
