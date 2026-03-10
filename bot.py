@@ -60,14 +60,14 @@ ROLES_TICKET = {
 }
 MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
-    "ganadores-eventos":   ("Head staff",  CAT_TRANSFER,   "🎖️  Ganadores de Eventos"),
-    "unregister":          ("Head staff",  CAT_TRANSFER,   "🔐  Unregister"),
-    "reembolso":           ("Head staff",  CAT_TRANSFER,   "💸  Reembolso"),
-    "staff-report":        ("Head staff",  CAT_TRANSFER,   "🚨  Staff Report"),
-    "error-config":        ("Head staff",  CAT_TRANSFER,   "⚠️  Error de Configuración"),
-    "revives":             ("High Staff",  CAT_TRANSFER,   "💊  Revives"),
-    "cambio-nick":         ("High Staff",  CAT_TRANSFER,   "✏️  Cambio de Nick"),
-    "bug-bot-critico":     ("Head staff",  CAT_BOTS_HEAD,  "🚨  Bug Crítico de Bot"),
+    "ganadores-eventos":   ("Head staff",  "🎖️ Escalación - Ganadores de Eventos",  "🎖️  Ganadores de Eventos"),
+    "unregister":          ("Head staff",  "🔐 Escalación - Unregister",             "🔐  Unregister"),
+    "reembolso":           ("Head staff",  "💸 Escalación - Reembolso",              "💸  Reembolso"),
+    "staff-report":        ("Head staff",  "🚨 Escalación - Staff Report",           "🚨  Staff Report"),
+    "error-config":        ("Head staff",  "⚠️ Escalación - Error de Config",        "⚠️  Error de Configuración"),
+    "revives":             ("High Staff",  "💊 Escalación - Revives",                "💊  Revives"),
+    "cambio-nick":         ("High Staff",  "✏️ Escalación - Cambio de Nick",         "✏️  Cambio de Nick"),
+    "bug-bot-critico":     ("Head staff",  CAT_BOTS_HEAD,                            "🚨  Bug Crítico de Bot"),
 }
 STAFF_TEAM        = "Staff team"
 ROL_SOPORTE       = "| Soporte"
@@ -744,33 +744,59 @@ class TransferView(ui.View):
         canal      = interaction.channel
         guild      = interaction.guild
         owner_id   = self.owner_id or _get_owner_id_from_topic(canal)
-        cat_t = await get_o_crear_cat(guild, cat_nombre)
-        if cat_t and canal.category != cat_t:
-            try: await canal.edit(category=cat_t)
-            except (discord.Forbidden, discord.HTTPException): pass
-        asyncio.create_task(rename_robusto(canal, destino + "-pendiente"))
+
+        await interaction.response.defer()
+
+        # ── Crear o buscar la categoría destino con permisos correctos ──
+        cat_t = discord.utils.get(guild.categories, name=cat_nombre)
+        if not cat_t:
+            overwrites_cat = {
+                guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                guild.me:           discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
+            }
+            if rol_nuevo:
+                overwrites_cat[rol_nuevo] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            try:
+                cat_t = await guild.create_category(cat_nombre, overwrites=overwrites_cat)
+            except discord.Forbidden:
+                cat_t = None
+
+        # ── Quitar permisos de staff anterior en el canal ──
         roles_quitar = [STAFF_TEAM] + [n for n, _ in ROLES_TICKET.values() if n]
         for target in list(canal.overwrites):
             if isinstance(target, discord.Role) and target.name in roles_quitar:
                 try: await canal.set_permissions(target, overwrite=None)
                 except discord.Forbidden: pass
+
+        # ── Dar permisos al nuevo rol en el canal ──
         if rol_nuevo:
             try: await canal.set_permissions(rol_nuevo, read_messages=True, send_messages=True)
             except discord.Forbidden: pass
+
+        # ── Mantener permisos del usuario dueño del ticket ──
         if owner_id:
             owner = guild.get_member(owner_id)
             if owner:
                 try: await canal.set_permissions(owner, read_messages=True, send_messages=True, attach_files=True)
                 except discord.Forbidden: pass
+
+        # ── Mover el canal a la nueva categoría ──
+        if cat_t and canal.category != cat_t:
+            try: await canal.edit(category=cat_t, sync_permissions=False)
+            except (discord.Forbidden, discord.HTTPException): pass
+
+        # ── Renombrar canal ──
+        asyncio.create_task(rename_robusto(canal, destino + "-pendiente"))
+
         await resetear_claim_en_canal(canal, destino, owner_id)
         mention = rol_nuevo.mention if rol_nuevo else f"@{nombre_rol}"
-        await interaction.response.send_message(embed=embed_transfer_msg(label, guild))
+        await interaction.followup.send(embed=embed_transfer_msg(label, guild))
         await canal.send(f"{mention}  ✦  Se requiere atención en este ticket — **{label}**.")
         log_e = discord.Embed(title="🔄  Ticket Transferido", color=COLOR_WARN, timestamp=datetime.datetime.now())
-        log_e.add_field(name="Canal",   value=canal.mention,            inline=True)
-        log_e.add_field(name="Destino", value=label,                    inline=True)
-        log_e.add_field(name="Rol",     value=nombre_rol,               inline=True)
-        log_e.add_field(name="Staff",   value=interaction.user.mention, inline=True)
+        log_e.add_field(name="Canal",    value=canal.mention,            inline=True)
+        log_e.add_field(name="Destino",  value=label,                    inline=True)
+        log_e.add_field(name="Rol",      value=nombre_rol,               inline=True)
+        log_e.add_field(name="Staff",    value=interaction.user.mention, inline=True)
         log_e.set_footer(text=FOOTER)
         await enviar_log(guild, log_e)
 
