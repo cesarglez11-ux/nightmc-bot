@@ -1466,7 +1466,7 @@ async def on_message(message: discord.Message):
                     name="NightMc Network  ✦  ¡Ganaste un premio!",
                     icon_url=message.guild.icon.url if message.guild.icon else None
                 )
-                dm.title = f"🎁  ¡Felicidades, {message.author.mention}!"
+                dm.title = f"🎁  ¡Felicidades, {message.author.display_name}!"
                 dm.description = (
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"Por tu actividad en **NightMC Network**\n"
@@ -1479,7 +1479,7 @@ async def on_message(message: discord.Message):
                     name="📋  ¿Cómo reclamarlo?",
                     value=(
                         "> Abre un ticket en el servidor con el tipo\n"
-                        "> **Pagos Tienda** y muestra este mensaje.\n"
+                        "> **Rewards** y muestra este mensaje.\n"
                         "> El staff verificará tu nivel y te dará el rango."
                     ),
                     inline=False
@@ -2127,7 +2127,7 @@ async def testpremio(ctx, usuario: discord.Member = None, nivel: int = 25):
         name="NightMc Network  ✦  ¡Ganaste un premio!",
         icon_url=ctx.guild.icon.url if ctx.guild.icon else None
     )
-    dm.title = f"🎁  ¡Felicidades, {usuario.mention}!"
+    dm.title = f"🎁  ¡Felicidades, {usuario.display_name}!"
     dm.description = (
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"Por tu actividad en **NightMC Network**\n"
@@ -2140,7 +2140,7 @@ async def testpremio(ctx, usuario: discord.Member = None, nivel: int = 25):
         name="📋  ¿Cómo reclamarlo?",
         value=(
             "> Abre un ticket en el servidor con el tipo\n"
-            "> **Pagos Tienda** y muestra este mensaje.\n"
+            "> **Rewards** y muestra este mensaje.\n"
             "> El staff verificará tu nivel y te dará el rango."
         ),
         inline=False
