@@ -20,7 +20,8 @@ import io
 import json
 import os
 
-TOKEN = os.getenv("DISCORD_TOKEN")
+TOKEN    = os.getenv("DISCORD_TOKEN")
+GUILD_ID = int(os.getenv("GUILD_ID", "0"))  # Pon tu Guild ID en Railway → Variables
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   ⚙️  CONFIGURACIÓN — NIVELES & SUGERENCIAS
@@ -452,7 +453,17 @@ class NightBot(commands.Bot):
         self.add_view(TicketLauncher())
         self.add_view(TicketControl())
         self.add_view(GiveawayView())
-        print("✦  Bot de Tickets listo. Usa nm!sync para registrar los comandos slash.")
+        # Auto-sync al guild configurado al arrancar
+        if GUILD_ID:
+            guild_obj = discord.Object(id=GUILD_ID)
+            self.tree.copy_global_to(guild=guild_obj)
+            try:
+                synced = await self.tree.sync(guild=guild_obj)
+                print(f"✦  {len(synced)} slash commands sincronizados al guild {GUILD_ID}")
+            except Exception as e:
+                print(f"✗  Error al sincronizar: {e}")
+        else:
+            print("✦  Bot listo. Configura GUILD_ID en Railway y usa nm!sync.")
 
     async def on_ready(self):
         await self.change_presence(activity=discord.Activity(
@@ -1177,7 +1188,7 @@ async def setup(ctx):
 async def sync(ctx):
     await ctx.send("⏳  Registrando comandos slash...")
     try:
-        # Sincronizar directamente al guild — no depende de comandos globales
+        bot.tree.copy_global_to(guild=ctx.guild)
         synced = await bot.tree.sync(guild=ctx.guild)
         nombres = "\n".join(f"  · `/{cmd.name}`" for cmd in synced)
         await ctx.send(
