@@ -1175,15 +1175,19 @@ async def setup(ctx):
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def sync(ctx):
-    msg = await ctx.send("⏳  Registrando comandos...")
+    await ctx.send("⏳  Registrando comandos slash...")
     try:
-        bot.tree.copy_global_to(guild=ctx.guild)
+        # Sincronizar directamente al guild — no depende de comandos globales
         synced = await bot.tree.sync(guild=ctx.guild)
-        await msg.edit(content=f"✅  **{len(synced)} comandos** registrados en **{ctx.guild.name}**.\n💡  Si no aparecen haz **Ctrl+R**.")
+        nombres = "\n".join(f"  · `/{cmd.name}`" for cmd in synced)
+        await ctx.send(
+            f"✅  **{len(synced)} comandos** registrados en **{ctx.guild.name}**.\n"
+            f"💡  Si no aparecen haz **Ctrl+R**.\n{nombres}"
+        )
         for cmd in synced:
             print(f"  · /{cmd.name}")
     except Exception as e:
-        await msg.edit(content=f"❌  Error: {e}")
+        await ctx.send(f"❌  Error: `{e}`")
 
 @bot.command(name="claim")
 async def claim_prefix(ctx):
