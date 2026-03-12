@@ -997,14 +997,6 @@ class TicketLauncher(ui.View):
 # ╔═══════════════════════════════════════════════════════════════╗
 #   ⚡  SLASH COMMANDS
 # ╚═══════════════════════════════════════════════════════════════╝
-@bot.tree.command(name="transfer", description="Deriva este ticket a otro equipo de staff")
-async def transfer_slash(interaction: discord.Interaction):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
-    owner_id = _get_owner_id_from_topic(interaction.channel)
-    await interaction.response.send_message(
-        embed=embed_transfer_menu(interaction.guild),
-        view=TransferView(owner_id=owner_id), ephemeral=True)
 
 @bot.tree.command(name="close", description="Cierra este ticket")
 async def close_slash(interaction: discord.Interaction):
@@ -1046,153 +1038,11 @@ async def transcript_slash(interaction: discord.Interaction):
         try: await lc.send(embed=log_e, file=discord.File(arch2, filename=nombre))
         except Exception: pass
 
-@bot.tree.command(name="add", description="Añade a un usuario al ticket")
-@discord.app_commands.describe(usuario="Usuario a añadir")
-async def add_slash(interaction: discord.Interaction, usuario: discord.Member):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
-    await interaction.response.defer()
-    try:
-        await interaction.channel.set_permissions(usuario, read_messages=True, send_messages=True)
-        await interaction.followup.send(f"✅  {usuario.mention} fue añadido al ticket.")
-    except discord.Forbidden:
-        await interaction.followup.send("❌  Sin permisos.", ephemeral=True)
 
-@bot.tree.command(name="remove", description="Elimina a un usuario del ticket")
-@discord.app_commands.describe(usuario="Usuario a eliminar")
-async def remove_slash(interaction: discord.Interaction, usuario: discord.Member):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
-    await interaction.response.defer()
-    try:
-        await interaction.channel.set_permissions(usuario, overwrite=None)
-        await interaction.followup.send(f"🚫  {usuario.mention} fue eliminado del ticket.")
-    except discord.Forbidden:
-        await interaction.followup.send("❌  Sin permisos.", ephemeral=True)
 
-@bot.tree.command(name="rename", description="Renombra el canal del ticket")
-@discord.app_commands.describe(nombre="Nuevo nombre (sin espacios)")
-async def rename_slash(interaction: discord.Interaction, nombre: str):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
-    await interaction.response.defer(ephemeral=True)
-    try:
-        await interaction.channel.edit(name=nombre.lower().replace(" ", "-")[:50])
-        await interaction.followup.send("✏️  Canal renombrado.", ephemeral=True)
-    except (discord.Forbidden, discord.HTTPException) as e:
-        await interaction.followup.send(f"❌  {e}", ephemeral=True)
 
-@bot.tree.command(name="slowmode", description="Activa o desactiva el modo lento")
-@discord.app_commands.describe(segundos="Segundos (0 para desactivar)")
-async def slowmode_slash(interaction: discord.Interaction, segundos: int = 0):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
-    await interaction.response.defer()
-    segundos = max(0, min(segundos, 21600))
-    try:
-        await interaction.channel.edit(slowmode_delay=segundos)
-        msg = f"🐢  Slowmode: **{segundos}s**." if segundos else "✅  Slowmode desactivado."
-        await interaction.followup.send(msg)
-    except discord.Forbidden:
-        await interaction.followup.send("❌  Sin permisos.", ephemeral=True)
 
-@bot.tree.command(name="specifictag_staff", description="Transfiere este ticket a un staff específico")
-@discord.app_commands.describe(staff="Miembro del staff al que transferir")
-async def specifictag_staff(interaction: discord.Interaction, staff: discord.Member):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
-    if not es_staff(staff):
-        return await interaction.response.send_message("❌  El usuario no es staff.", ephemeral=True)
-    if staff.id == interaction.user.id:
-        return await interaction.response.send_message("❌  No puedes transferirte el ticket a ti mismo.", ephemeral=True)
-    await interaction.response.defer()
-    canal    = interaction.channel
-    guild    = interaction.guild
-    owner_id = _get_owner_id_from_topic(canal)
-    for target in list(canal.overwrites):
-        if isinstance(target, discord.Role) and target.name in TODOS_ROLES_STAFF:
-            try: await canal.set_permissions(target, overwrite=None)
-            except discord.Forbidden: pass
-    for nombre_rol in ROLES_SUPERIORES:
-        rol = discord.utils.get(guild.roles, name=nombre_rol)
-        if rol:
-            try: await canal.set_permissions(rol, read_messages=True, send_messages=True)
-            except discord.Forbidden: pass
-    try: await canal.set_permissions(staff, read_messages=True, send_messages=True)
-    except discord.Forbidden: pass
-    if owner_id:
-        owner = guild.get_member(owner_id)
-        if owner:
-            try: await canal.set_permissions(owner, read_messages=True, send_messages=True, attach_files=True)
-            except discord.Forbidden: pass
-    cat_t = await get_o_crear_cat(guild, CAT_TRANSFER)
-    if cat_t and canal.category != cat_t:
-        try: await canal.edit(category=cat_t)
-        except (discord.Forbidden, discord.HTTPException): pass
-    nombre_destino = f"staff-{staff.name[:12].lower()}"
-    await resetear_claim_en_canal(canal, nombre_destino, owner_id)
-    asyncio.create_task(rename_robusto(canal, f"{nombre_destino}-pendiente"))
-    e = discord.Embed(title="👤  Ticket Transferido a Staff", color=COLOR_BLUE)
-    e.description = (f"Este ticket fue asignado a {staff.mention}.\n\n"
-                     f"Solo **{staff.display_name}** y roles a partir de **Hight staff** pueden verlo.\n"
-                     f"**Agradecemos tu paciencia.**")
-    e.set_image(url=BANNER_URL)
-    _footer(e, guild)
-    await interaction.followup.send(embed=e)
-    await canal.send(f"{staff.mention}  ✦  Se te ha asignado este ticket.")
-    log_e = discord.Embed(title="👤  Ticket → Staff Específico", color=COLOR_BLUE, timestamp=datetime.datetime.now())
-    log_e.add_field(name="Canal",    value=canal.mention,            inline=True)
-    log_e.add_field(name="Asignado", value=staff.mention,            inline=True)
-    log_e.add_field(name="Por",      value=interaction.user.mention, inline=True)
-    log_e.set_footer(text=FOOTER)
-    await enviar_log(guild, log_e)
 
-@bot.tree.command(name="specifictag_role", description="Transfiere este ticket a un rol específico")
-@discord.app_commands.describe(rol="Rol al que transferir el ticket")
-async def specifictag_role(interaction: discord.Interaction, rol: discord.Role):
-    if not es_staff(interaction.user):
-        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
-    await interaction.response.defer()
-    canal    = interaction.channel
-    guild    = interaction.guild
-    owner_id = _get_owner_id_from_topic(canal)
-    for target in list(canal.overwrites):
-        if isinstance(target, discord.Role) and target.name in TODOS_ROLES_STAFF:
-            try: await canal.set_permissions(target, overwrite=None)
-            except discord.Forbidden: pass
-    for nombre_rol in ROLES_SUPERIORES:
-        r = discord.utils.get(guild.roles, name=nombre_rol)
-        if r:
-            try: await canal.set_permissions(r, read_messages=True, send_messages=True)
-            except discord.Forbidden: pass
-    try: await canal.set_permissions(rol, read_messages=True, send_messages=True)
-    except discord.Forbidden: pass
-    if owner_id:
-        owner = guild.get_member(owner_id)
-        if owner:
-            try: await canal.set_permissions(owner, read_messages=True, send_messages=True, attach_files=True)
-            except discord.Forbidden: pass
-    cat_t = await get_o_crear_cat(guild, CAT_TRANSFER)
-    if cat_t and canal.category != cat_t:
-        try: await canal.edit(category=cat_t)
-        except (discord.Forbidden, discord.HTTPException): pass
-    nombre_destino = rol.name[:20].lower().replace(" ", "-")
-    await resetear_claim_en_canal(canal, nombre_destino, owner_id)
-    asyncio.create_task(rename_robusto(canal, f"{nombre_destino}-pendiente"))
-    e = discord.Embed(title="🎭  Ticket Transferido a Rol", color=COLOR_BLUE)
-    e.description = (f"Este ticket fue asignado al rol {rol.mention}.\n\n"
-                     f"Solo **{rol.name}** y roles a partir de **Hight staff** pueden verlo.\n"
-                     f"**Agradecemos tu paciencia.**")
-    e.set_image(url=BANNER_URL)
-    _footer(e, guild)
-    await interaction.followup.send(embed=e)
-    await canal.send(f"{rol.mention}  ✦  Se requiere atención en este ticket.")
-    log_e = discord.Embed(title="🎭  Ticket → Rol Específico", color=COLOR_BLUE, timestamp=datetime.datetime.now())
-    log_e.add_field(name="Canal", value=canal.mention,            inline=True)
-    log_e.add_field(name="Rol",   value=rol.mention,              inline=True)
-    log_e.add_field(name="Por",   value=interaction.user.mention, inline=True)
-    log_e.set_footer(text=FOOTER)
-    await enviar_log(guild, log_e)
 
 def _get_rango(member: discord.Member) -> str:
     roles = [r.name for r in member.roles]
@@ -2133,13 +1983,13 @@ async def serverinfo_slash(interaction: discord.Interaction):
 @commands.has_permissions(administrator=True)
 async def clearglobal(ctx):
     """Elimina todos los slash commands globales duplicados."""
-    msg = await ctx.send("⏳  Limpiando comandos globales...")
+    await ctx.send("⏳  Limpiando comandos globales... (puede tardar ~15s por rate limit de Discord)")
     try:
         bot.tree.clear_commands(guild=None)
         await bot.tree.sync()
-        await msg.edit(content="✅  Comandos globales eliminados.\nUsa `nm!sync` para volver a registrarlos en este servidor.")
+        await ctx.send("✅  Comandos globales eliminados. Usa `nm!sync` para registrarlos en este servidor.")
     except Exception as e:
-        await msg.edit(content=f"❌  Error: {e}")
+        await ctx.send(f"❌  Error: `{e}`")
 
 @bot.command(name="givexp")
 @commands.has_permissions(administrator=True)
