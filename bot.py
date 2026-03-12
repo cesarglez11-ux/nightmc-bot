@@ -1829,11 +1829,76 @@ async def serverinfo_slash(interaction: discord.Interaction):
     await interaction.response.send_message(embed=e)
 
 # ╔═══════════════════════════════════════════════════════════════╗
+#   💬  EVENTO ON_MESSAGE — SISTEMA DE XP
+# ╚═══════════════════════════════════════════════════════════════╝
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        await bot.process_commands(message)
+        return
+    
+    if not message.guild:
+        await bot.process_commands(message)
+        return
+    
+    # Cargar niveles
+    niveles = cargar_niveles()
+    uid_str = str(message.author.id)
+    
+    # Inicializar si no existe
+    if uid_str not in niveles:
+        niveles[uid_str] = {"xp": 0, "last_message": 0}
+    
+    # Cooldown: máximo 1 XP cada 60 segundos
+    ahora = time.time()
+    if ahora - niveles[uid_str]["last_message"] < 60:
+        await bot.process_commands(message)
+        return
+    
+    # XP aleatorio entre 10-25 por mensaje
+    xp_ganado = random.randint(10, 25)
+    
+    nivel_anterior = obtener_nivel_desde_xp(niveles[uid_str]["xp"])
+    
+    niveles[uid_str]["xp"] += xp_ganado
+    niveles[uid_str]["last_message"] = ahora
+    
+    nivel_nuevo = obtener_nivel_desde_xp(niveles[uid_str]["xp"])
+    
+    guardar_niveles(niveles)
+    
+    # Si subió de nivel
+    if nivel_nuevo > nivel_anterior:
+        # Enviar mensaje de level up
+        await message.channel.send(embed=_build_level_up_embed(message.author, nivel_nuevo))
+        
+        # Si alcanzó una recompensa
+        recompensas = {
+            25: ("Lunar", "1 día"),
+            50: ("Dark", "1 día"),
+            75: ("Eclipse", "1 día"),
+            100: ("Eclipse+", "1 semana")
+        }
+        
+        if nivel_nuevo in recompensas:
+            rango_nombre, duracion = recompensas[nivel_nuevo]
+            embed_reward = _build_reward_embed(message.author, nivel_nuevo, rango_nombre, duracion)
+            
+            # Enviar DM al usuario
+            try:
+                await message.author.send(embed=embed_reward)
+            except discord.Forbidden:
+                await message.channel.send(f"⚠️  {message.author.mention}, revisa tus DMs para tu recompensa", delete_after=10)
+    
+    await bot.process_commands(message)
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
 #   🚀  ARRANQUE
 # ╚═══════════════════════════════════════════════════════════════╝
 if not TOKEN:
     print("\n❌  ERROR: No se encontró DISCORD_TOKEN")
-    print("   Railway → Variables → añade DISCORD_TOKEN\n")
+    print("   Railway › Variables › añade DISCORD_TOKEN\n")
     exit(1)
 
 bot.run(TOKEN)
