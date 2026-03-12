@@ -37,8 +37,8 @@ XP_COOLDOWN_SEG   = 60   # segundos entre mensajes que dan XP
 PREMIOS_NIVEL = {
     25:  ("Lunar",    "1 día"),
     50:  ("Dark",     "1 día"),
-    75:  ("Eclipse",  "1 día"),
-    100: ("Eclipse+", "1 semana"),
+    75:  ("Lunar",  "1 semana"),
+    100: ("Dark", "1 semana"),
 }
 
 def _xp_para_nivel(nivel: int) -> int:
