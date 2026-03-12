@@ -33,12 +33,20 @@ CANAL_SUGERENCIAS = "💡│sugerencias"
 XP_MIN, XP_MAX    = 15, 25
 XP_COOLDOWN_SEG   = 60   # segundos entre mensajes que dan XP
 
+# Canales donde se gana XP (nombres exactos del servidor)
+CANALES_XP = {
+    "💬│general",
+    "💬│general-vip",
+    "📷│multimedia",
+    "🤖│comandos",
+}
+
 # Premios por nivel — DM al usuario
 PREMIOS_NIVEL = {
     25:  ("Lunar",    "1 día"),
     50:  ("Dark",     "1 día"),
-    75:  ("Lunar",  "1 semana"),
-    100: ("Dark", "1 semana"),
+    75:  ("Eclipse",  "1 día"),
+    100: ("Eclipse+", "1 semana"),
 }
 
 def _xp_para_nivel(nivel: int) -> int:
@@ -60,17 +68,17 @@ def _nivel_desde_xp(xp_total: int) -> int:
 # ╚═══════════════════════════════════════════════════════════════╝
 COOLDOWN_SEGUNDOS = 60
 
-CAT_SOPORTE      = "🛠️ SOPORTE"
-CAT_REPORTE      = "🚫 REPORTES"
-CAT_APELACION    = "⚖️ APELACIONES"
-CAT_PAGOS        = "💰 Pagos Tienda"
-CAT_POSTULACION  = "📋 Postulaciones Staff"
-CAT_ALIANZA      = "🤝 Alianzas"
-CAT_EVENTO       = "🎉 Eventos"
-CAT_REWARDS      = "🎁 Rewards"
-CAT_BOTS         = "🤖 Soporte Bots"
-CAT_BOTS_HEAD    = "⚙️ Escalación de Bots"
-CAT_TRANSFER     = "🔄 TRANSFERIDOS"
+CAT_SOPORTE      = "➢ SOPORTE"
+CAT_REPORTE      = "➢ REPORTES"
+CAT_APELACION    = "➢ APELACIONES"
+CAT_PAGOS        = "➢ PAGOS TIENDA"
+CAT_POSTULACION  = "➢ POSTULACIONES STAFF"
+CAT_ALIANZA      = "➢ ALIANZAS"
+CAT_EVENTO       = "➢ APELACIONES"
+CAT_REWARDS      = "➢ REWARDS"
+CAT_BOTS         = "➢ SOPORTE BOTS"
+CAT_BOTS_HEAD    = "➢ ESCALACIÓN DE BOTS"
+CAT_TRANSFER     = "➢ TRANSFERIDOS"
 LOGS_CANAL       = "logs-tickets"
 
 CATEGORIAS_TICKET = {
@@ -80,7 +88,7 @@ CATEGORIAS_TICKET = {
     "pagos_tienda": CAT_PAGOS,
     "postulacion":  CAT_POSTULACION,
     "alianza":      CAT_ALIANZA,
-    "reward":       CAT_REWARDS,
+    "evento":       CAT_REWARDS,
     "bots":         CAT_BOTS,
 }
 ROLES_TICKET = {
@@ -1068,6 +1076,7 @@ def _get_rango(member: discord.Member) -> str:
 
 def _build_help(guild, member: discord.Member = None):
     rango = _get_rango(member) if member else "usuario"
+    es_admin = member and member.guild_permissions.administrator if member else False
 
     e = discord.Embed(color=COLOR_BLUE)
     e.set_author(name="NightMc Network  ✦  Centro de Comandos",
@@ -1085,13 +1094,16 @@ def _build_help(guild, member: discord.Member = None):
         e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
         return e
 
-    # ── Leyenda de colores ────────────────────────────────────────
+    # ── Descripción según rango ───────────────────────────────────
     if rango in ("low", "medium", "staff", "high", "head"):
+        leyenda = "🟢 Todos  ·  🔵 Staff  ·  🟠 High  ·  🔴 Head"
+        if es_admin:
+            leyenda += "  ·  🔑 Admin"
         e.description = (
             f"Hola {member.mention}, aquí están todos tus comandos.\n"
             f"Prefijo: `nm!`  ·  Slash: `/`\n"
             f"{SEP}\n"
-            f"🟢 Todos  ·  🔵 Staff  ·  🟠 High Staff  ·  🔴 Head staff\n"
+            f"{leyenda}\n"
             f"{SEP}"
         )
     else:
@@ -1105,7 +1117,7 @@ def _build_help(guild, member: discord.Member = None):
         "> `/ip` `nm!ip` — IPs y modalidades del servidor\n"
         "> `/rank` — Ver tu nivel y XP actual\n"
         "> `/leaderboard` — Top 10 jugadores por nivel\n"
-        "> `/sugerencia` — Enviar una sugerencia al equipo\n"
+        "> `/sugerencia` — Enviar sugerencia al equipo\n"
         "> `/rules` `nm!rules` — Reglas *(dc = Discord · mc = Minecraft)*\n"
         "> `/avatar` `/banner` `/userinfo` `/serverinfo` — Perfil\n"
         "> `/ping` `nm!ping` — Latencia del bot\n"
@@ -1118,13 +1130,13 @@ def _build_help(guild, member: discord.Member = None):
             "> `/claim` `nm!claim` — Reclamar el ticket\n"
             "> `/close` `nm!close` — Cerrar y eliminar el ticket\n"
             "> `/transcript` — Generar transcript del historial\n"
-            "> `/add @usuario` — Añadir usuario al ticket\n"
-            "> `/remove @usuario` — Eliminar usuario del ticket\n"
-            "> `/rename <nombre>` — Renombrar el canal\n"
-            "> `/slowmode [seg]` — Modo lento *(0 = desactivar)*\n"
-            "> `/transfer` — Derivar a otro equipo de staff\n"
-            "> `/specifictag_staff @staff` — Asignar a staff específico\n"
-            "> `/specifictag_role @rol` — Asignar a rol específico"
+            "> `nm!add @usuario` — Añadir usuario al ticket\n"
+            "> `nm!remove @usuario` — Eliminar usuario del ticket\n"
+            "> `nm!rename <nombre>` — Renombrar el canal\n"
+            "> `nm!slowmode [seg]` — Modo lento *(0 = desactivar)*\n"
+            "> `nm!transfer` — Derivar *(o botón 🔄 del ticket)*\n"
+            "> `nm!specifictag_staff @staff` — Asignar a staff específico\n"
+            "> `nm!specifictag_role @rol` — Asignar a rol específico"
         ), inline=False)
 
     # ── High Staff ───────────────────────────────────────────────
@@ -1141,15 +1153,28 @@ def _build_help(guild, member: discord.Member = None):
             "> `/giveaway_end <id>` — Terminar sorteo anticipadamente\n"
             "> `/giveaway_reroll <id>` — Elegir nuevo ganador"
         ), inline=False)
-        e.add_field(name="🔐  Administración  🔴", value=(
+
+    # ── Administrador (permiso real de Discord) ───────────────────
+    if es_admin:
+        e.add_field(name="🔐  Administración  🔑", value=(
             "> `nm!setup` — Publicar panel de tickets\n"
             "> `nm!sync` — Registrar slash commands\n"
+            "> `nm!clearglobal` — Limpiar comandos slash duplicados\n"
+            "> ⚠️  *Requieren permiso de* ***Administrador***"
+        ), inline=False)
+        e.add_field(name="🧪  Testing & XP  🔑", value=(
+            "> `nm!givexp @user <cantidad>` — Dar XP a un usuario\n"
+            "> `nm!removexp @user <cantidad>` — Quitar XP\n"
+            "> `nm!setrank @user <nivel>` — Establecer nivel directamente\n"
+            "> `nm!resetxp @user` — Resetear XP a 0\n"
+            "> `nm!testpremio @user <nivel>` — Probar DM de premio *(25/50/75/100)*\n"
             "> ⚠️  *Requieren permiso de* ***Administrador***"
         ), inline=False)
 
     e.add_field(name=SEP, value=(
-        "> 💡  Si un slash no responde, usa el prefijo `nm!`\n"
-        "> 🎫  Para soporte abre un ticket en el canal correspondiente"
+        "> 💡  Los comandos `nm!` de tickets no necesitan slash\n"
+        "> 🎫  Para soporte abre un ticket en el canal correspondiente\n"
+        "> 🎮  El XP solo se gana en: `general`, `general-vip`, `multimedia`, `comandos`"
     ), inline=False)
     e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
     return e
@@ -1416,6 +1441,11 @@ async def on_message(message: discord.Message):
     import time
     uid   = message.author.id
     ahora = time.time()
+
+    # Solo dar XP en canales permitidos
+    if message.channel.name not in CANALES_XP:
+        await bot.process_commands(message)
+        return
 
     # Cooldown de XP
     if ahora - _xp_cooldowns.get(uid, 0) >= XP_COOLDOWN_SEG:
