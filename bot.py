@@ -80,7 +80,7 @@ CATEGORIAS_TICKET = {
     "pagos_tienda": CAT_PAGOS,
     "postulacion":  CAT_POSTULACION,
     "alianza":      CAT_ALIANZA,
-    "evento":       CAT_REWARDS,
+    "reward":       CAT_REWARDS,
     "bots":         CAT_BOTS,
 }
 ROLES_TICKET = {
