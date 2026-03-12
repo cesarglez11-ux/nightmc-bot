@@ -42,7 +42,10 @@ ROLES_NIVEL = [
 ]
 
 def _xp_para_nivel(nivel: int) -> int:
-    """XP total acumulado necesario para alcanzar `nivel`."""
+    """XP total acumulado necesario para alcanzar `nivel`.
+    Nivel 0 = 0 XP, nivel 1 = 155 XP, nivel 2 = 220 XP..."""
+    if nivel <= 0:
+        return 0
     return 5 * (nivel ** 2) + 50 * nivel + 100
 
 def _nivel_desde_xp(xp_total: int) -> int:
@@ -1623,39 +1626,29 @@ async def rank_slash(interaction: discord.Interaction, usuario: discord.Member =
     u      = _get_user_xp(data, target.id)
     nivel  = u["nivel"]
     xp     = u["xp"]
-    xp_actual_lvl = _xp_para_nivel(nivel)
-    xp_sig_lvl    = _xp_para_nivel(nivel + 1)
-    xp_en_nivel   = xp - xp_actual_lvl
-    xp_necesario  = xp_sig_lvl - xp_actual_lvl
-    progreso      = min(int((xp_en_nivel / xp_necesario) * 20), 20) if xp_necesario > 0 else 20
-    barra         = "█" * progreso + "░" * (20 - progreso)
+
+    # XP dentro del nivel actual (siempre positivo ahora)
+    xp_base_nivel = _xp_para_nivel(nivel)       # XP necesario para llegar al nivel actual
+    xp_base_sig   = _xp_para_nivel(nivel + 1)   # XP necesario para llegar al siguiente
+    xp_en_nivel   = xp - xp_base_nivel          # XP ganado dentro del nivel actual
+    xp_necesario  = xp_base_sig - xp_base_nivel # XP total requerido para subir
+
+    # Barra de progreso (12 bloques)
+    pct      = max(0, min(xp_en_nivel / xp_necesario, 1.0)) if xp_necesario > 0 else 1.0
+    filled   = int(pct * 12)
+    barra    = "🟩" * filled + "⬛" * (12 - filled)
+    pct_txt  = f"{int(pct * 100)}%"
 
     # Posición en ranking
     ranking = sorted(data.items(), key=lambda x: x[1].get("xp", 0), reverse=True)
     pos     = next((i+1 for i, (k, _) in enumerate(ranking) if k == str(target.id)), "?")
 
-    # Rol de nivel actual
+    # Rol actual
     rol_actual = None
     for lvl_req, nombre_rol in reversed(ROLES_NIVEL):
         if nivel >= lvl_req:
             rol_actual = nombre_rol
             break
-
-    e = discord.Embed(color=0xf1c40f)
-    e.set_author(name="NightMc Network  ✦  Perfil de Nivel",
-                 icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
-    e.set_thumbnail(url=target.display_avatar.url)
-    e.title = f"📊  {target.display_name}"
-    e.description = (
-        f"{SEP}\n"
-        f"**Nivel:** `{nivel}`  ·  **XP:** `{xp}`  ·  **Ranking:** `#{pos}`\n"
-        f"{SEP}"
-    )
-    e.add_field(name="📈  Progreso al siguiente nivel",
-                value=f"`{barra}` `{xp_en_nivel}/{xp_necesario} XP`", inline=False)
-    e.add_field(name="💬  Mensajes",   value=f"`{u.get('mensajes', 0)}`", inline=True)
-    e.add_field(name="🏅  Rol actual", value=f"`{rol_actual or 'Sin rol aún'}`", inline=True)
-    e.add_field(name="🎯  Próximo",    value=f"`{xp_sig_lvl - xp} XP` para nivel `{nivel+1}`", inline=True)
 
     # Próximo rol
     prox_rol = None
@@ -1663,9 +1656,38 @@ async def rank_slash(interaction: discord.Interaction, usuario: discord.Member =
         if nivel < lvl_req:
             prox_rol = (lvl_req, nombre_rol)
             break
+
+    # Color según nivel
+    colores = [0x95a5a6, 0x2ecc71, 0x3498db, 0x9b59b6, 0xf39c12, 0xe74c3c]
+    color   = colores[min(nivel // 10, len(colores) - 1)]
+
+    e = discord.Embed(color=color)
+    e.set_author(
+        name=f"NightMc Network  ✦  Perfil de {target.display_name}",
+        icon_url=target.display_avatar.url
+    )
+    e.set_thumbnail(url=target.display_avatar.url)
+    e.description = (
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⭐  **Nivel {nivel}**   ·   🏆  **Ranking #{pos}**\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    e.add_field(
+        name=f"📊  Progreso — {pct_txt}",
+        value=f"{barra}\n`{xp_en_nivel}` / `{xp_necesario}` XP  ·  Faltan `{xp_necesario - xp_en_nivel}` XP",
+        inline=False
+    )
+    e.add_field(name="✨  XP Total",    value=f"> `{xp} XP`",                          inline=True)
+    e.add_field(name="💬  Mensajes",    value=f"> `{u.get('mensajes', 0)}`",            inline=True)
+    e.add_field(name="🏅  Rol actual",  value=f"> `{rol_actual or 'Sin rol aún'}`",     inline=True)
+
     if prox_rol:
-        e.add_field(name="🔓  Próximo rol",
-                    value=f"> **{prox_rol[1]}** al nivel `{prox_rol[0]}`", inline=False)
+        xp_falta_rol = _xp_para_nivel(prox_rol[0]) - xp
+        e.add_field(
+            name="🔓  Próximo rol",
+            value=f"> **{prox_rol[1]}** al nivel `{prox_rol[0]}`  ·  faltan `{max(0, xp_falta_rol)} XP`",
+            inline=False
+        )
 
     e.set_footer(text=FOOTER, icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
     await interaction.response.send_message(embed=e)
@@ -2102,6 +2124,114 @@ async def serverinfo_slash(interaction: discord.Interaction):
         e.set_image(url=guild.banner.with_size(1024).url)
     e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
     await interaction.response.send_message(embed=e)
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   🔧  COMANDOS DE ADMIN — TESTING & MANTENIMIENTO
+# ╚═══════════════════════════════════════════════════════════════╝
+
+@bot.command(name="clearglobal")
+@commands.has_permissions(administrator=True)
+async def clearglobal(ctx):
+    """Elimina todos los slash commands globales duplicados."""
+    msg = await ctx.send("⏳  Limpiando comandos globales...")
+    try:
+        bot.tree.clear_commands(guild=None)
+        await bot.tree.sync()
+        await msg.edit(content="✅  Comandos globales eliminados.\nUsa `nm!sync` para volver a registrarlos en este servidor.")
+    except Exception as e:
+        await msg.edit(content=f"❌  Error: {e}")
+
+@bot.command(name="givexp")
+@commands.has_permissions(administrator=True)
+async def givexp(ctx, usuario: discord.Member = None, cantidad: int = 100):
+    """Da XP a un usuario. Uso: nm!givexp @usuario 500"""
+    if not usuario:
+        return await ctx.send("❌  Uso: `nm!givexp @usuario cantidad`")
+    if cantidad <= 0:
+        return await ctx.send("❌  La cantidad debe ser mayor a 0.")
+
+    data  = _load_niveles()
+    u     = _get_user_xp(data, usuario.id)
+    nivel_antes = u["nivel"]
+
+    u["xp"]    += cantidad
+    u["nivel"]  = _nivel_desde_xp(u["xp"])
+    _save_niveles(data)
+
+    # Asignar rol si subió de nivel
+    if u["nivel"] > nivel_antes:
+        await _asignar_rol_nivel(ctx.guild, usuario, u["nivel"])
+
+    e = discord.Embed(color=0x2ecc71)
+    e.set_author(name="NightMc Network  ✦  XP Añadido", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+    e.description = (
+        f"✅  Se añadieron **{cantidad} XP** a {usuario.mention}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    e.add_field(name="✨  XP Total",      value=f"`{u['xp']} XP`",   inline=True)
+    e.add_field(name="⭐  Nivel actual",  value=f"`{u['nivel']}`",    inline=True)
+    if u["nivel"] > nivel_antes:
+        e.add_field(name="🎉  Subió de nivel", value=f"`{nivel_antes}` → `{u['nivel']}`", inline=True)
+    e.set_footer(text=FOOTER)
+    await ctx.send(embed=e)
+
+@bot.command(name="removexp")
+@commands.has_permissions(administrator=True)
+async def removexp(ctx, usuario: discord.Member = None, cantidad: int = 100):
+    """Quita XP a un usuario. Uso: nm!removexp @usuario 500"""
+    if not usuario:
+        return await ctx.send("❌  Uso: `nm!removexp @usuario cantidad`")
+
+    data = _load_niveles()
+    u    = _get_user_xp(data, usuario.id)
+
+    u["xp"]    = max(0, u["xp"] - cantidad)
+    u["nivel"] = _nivel_desde_xp(u["xp"])
+    _save_niveles(data)
+
+    await ctx.send(f"🔻  Se quitaron **{cantidad} XP** a {usuario.mention}. Ahora tiene `{u['xp']} XP` (nivel `{u['nivel']}`).")
+
+@bot.command(name="setrank")
+@commands.has_permissions(administrator=True)
+async def setrank(ctx, usuario: discord.Member = None, nivel: int = 0):
+    """Establece el nivel de un usuario directamente. Uso: nm!setrank @usuario 10"""
+    if not usuario:
+        return await ctx.send("❌  Uso: `nm!setrank @usuario nivel`")
+    if nivel < 0:
+        return await ctx.send("❌  El nivel debe ser 0 o mayor.")
+
+    data = _load_niveles()
+    u    = _get_user_xp(data, usuario.id)
+
+    # Poner XP justo al inicio del nivel pedido
+    u["xp"]    = _xp_para_nivel(nivel)
+    u["nivel"] = nivel
+    _save_niveles(data)
+
+    await _asignar_rol_nivel(ctx.guild, usuario, nivel)
+
+    e = discord.Embed(color=0x9b59b6)
+    e.set_author(name="NightMc Network  ✦  Nivel Establecido", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+    e.description = (
+        f"✅  {usuario.mention} fue puesto en **nivel {nivel}**\n"
+        f"> XP asignado: `{u['xp']}`\n"
+        f"> Rol de nivel asignado automáticamente."
+    )
+    e.set_footer(text=FOOTER)
+    await ctx.send(embed=e)
+
+@bot.command(name="resetxp")
+@commands.has_permissions(administrator=True)
+async def resetxp(ctx, usuario: discord.Member = None):
+    """Resetea el XP de un usuario a 0. Uso: nm!resetxp @usuario"""
+    if not usuario:
+        return await ctx.send("❌  Uso: `nm!resetxp @usuario`")
+
+    data = _load_niveles()
+    data[str(usuario.id)] = {"xp": 0, "nivel": 0, "mensajes": 0}
+    _save_niveles(data)
+
+    await ctx.send(f"🔄  XP de {usuario.mention} reseteado a 0.")
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🚀  ARRANQUE
