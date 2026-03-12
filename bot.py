@@ -28,25 +28,25 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 NIVELES_FILE      = "niveles_data.json"
 CANAL_SUGERENCIAS = "💡│sugerencias"
 
-# XP por mensaje (rango aleatorio)
+# XP por mensaje — sube con el nivel (más nivel = más difícil)
 XP_MIN, XP_MAX    = 15, 25
 XP_COOLDOWN_SEG   = 60   # segundos entre mensajes que dan XP
 
-# Roles por nivel — (nivel_requerido, nombre_rol)
-ROLES_NIVEL = [
-    (5,  "Novato"),
-    (10, "Jugador"),
-    (20, "Veterano"),
-    (35, "Élite"),
-    (50, "Leyenda"),
-]
+# Premios por nivel — DM al usuario
+PREMIOS_NIVEL = {
+    25:  ("Lunar",    "1 día"),
+    50:  ("Dark",     "1 día"),
+    75:  ("Eclipse",  "1 día"),
+    100: ("Eclipse+", "1 semana"),
+}
 
 def _xp_para_nivel(nivel: int) -> int:
-    """XP total acumulado necesario para alcanzar `nivel`.
-    Nivel 0 = 0 XP, nivel 1 = 155 XP, nivel 2 = 220 XP..."""
+    """XP total acumulado para alcanzar `nivel`.
+    Escala cuadráticamente — niveles altos son mucho más difíciles.
+    Nivel 0=0, 1=100, 5=750, 10=2100, 25=10100, 50=35100, 100=130100"""
     if nivel <= 0:
         return 0
-    return 5 * (nivel ** 2) + 50 * nivel + 100
+    return 100 * nivel + 20 * (nivel ** 2)
 
 def _nivel_desde_xp(xp_total: int) -> int:
     nivel = 0
@@ -1395,27 +1395,6 @@ def _get_user_xp(data: dict, uid: int) -> dict:
         data[key] = {"xp": 0, "nivel": 0, "mensajes": 0}
     return data[key]
 
-async def _asignar_rol_nivel(guild: discord.Guild, member: discord.Member, nivel: int):
-    """Asigna el rol de nivel correspondiente, quitando los anteriores."""
-    rol_asignar = None
-    for lvl_req, nombre_rol in reversed(ROLES_NIVEL):
-        if nivel >= lvl_req:
-            rol_asignar = discord.utils.get(guild.roles, name=nombre_rol)
-            break
-    # Quitar roles de nivel anteriores
-    roles_nivel_nombres = {r for _, r in ROLES_NIVEL}
-    for rol in member.roles:
-        if rol.name in roles_nivel_nombres and (rol_asignar is None or rol.name != rol_asignar.name):
-            try:
-                await member.remove_roles(rol, reason="Actualización de nivel")
-            except Exception:
-                pass
-    if rol_asignar and rol_asignar not in member.roles:
-        try:
-            await member.add_roles(rol_asignar, reason=f"Nivel {nivel} alcanzado")
-        except Exception:
-            pass
-
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot or not message.guild:
@@ -1429,46 +1408,93 @@ async def on_message(message: discord.Message):
     # Cooldown de XP
     if ahora - _xp_cooldowns.get(uid, 0) >= XP_COOLDOWN_SEG:
         _xp_cooldowns[uid] = ahora
-        data    = _load_niveles()
-        u       = _get_user_xp(data, uid)
-        xp_add  = _random.randint(XP_MIN, XP_MAX)
+        data        = _load_niveles()
+        u           = _get_user_xp(data, uid)
         nivel_antes = u["nivel"]
 
-        u["xp"]       += xp_add
-        u["mensajes"]  = u.get("mensajes", 0) + 1
-        u["nivel"]     = _nivel_desde_xp(u["xp"])
+        # XP ganado: base + bonus por nivel (más nivel = más XP pero también más se necesita)
+        xp_add = _random.randint(XP_MIN, XP_MAX)
+        u["xp"]      += xp_add
+        u["mensajes"] = u.get("mensajes", 0) + 1
+        u["nivel"]    = _nivel_desde_xp(u["xp"])
         _save_niveles(data)
 
-        # Subió de nivel?
+        # ── Subió de nivel → mensaje en canal ──
         if u["nivel"] > nivel_antes:
-            await _asignar_rol_nivel(message.guild, message.author, u["nivel"])
-            e = discord.Embed(color=0xf1c40f)
+            nivel_nuevo = u["nivel"]
+            xp_sig      = _xp_para_nivel(nivel_nuevo + 1)
+            colores = [0x95a5a6, 0x2ecc71, 0x3498db, 0x9b59b6, 0xf39c12, 0xe74c3c]
+            color   = colores[min(nivel_nuevo // 10, len(colores) - 1)]
+
+            e = discord.Embed(color=color)
             e.set_author(
                 name="NightMc Network  ✦  ¡Subiste de nivel!",
                 icon_url=message.guild.icon.url if message.guild.icon else None
             )
             e.description = (
                 f"🎉  ¡Felicidades {message.author.mention}!\n"
-                f"Alcanzaste el **nivel {u['nivel']}** 🚀\n"
-                f"{SEP}"
+                f"Alcanzaste el **nivel {nivel_nuevo}** 🚀\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             )
-            e.add_field(name="⭐  XP Total",   value=f"`{u['xp']} XP`",    inline=True)
-            e.add_field(name="📊  Nivel",       value=f"`{u['nivel']}`",    inline=True)
-            xp_sig = _xp_para_nivel(u["nivel"] + 1)
-            e.add_field(name="🎯  Próximo nivel",
-                        value=f"`{xp_sig - u['xp']} XP` restantes", inline=True)
-            # Rol ganado?
-            for lvl_req, nombre_rol in ROLES_NIVEL:
-                if u["nivel"] == lvl_req:
-                    e.add_field(name="🏅  Rol desbloqueado",
-                                value=f"> Obtuviste el rol **{nombre_rol}** 🎊", inline=False)
-                    break
+            e.add_field(name="⭐  XP Total",     value=f"`{u['xp']} XP`",             inline=True)
+            e.add_field(name="📊  Nivel",         value=f"`{nivel_nuevo}`",              inline=True)
+            e.add_field(name="🎯  Próximo nivel", value=f"`{xp_sig - u['xp']} XP`",   inline=True)
             e.set_thumbnail(url=message.author.display_avatar.url)
             e.set_footer(text=FOOTER, icon_url=message.guild.icon.url if message.guild.icon else None)
             try:
                 await message.channel.send(embed=e)
             except Exception:
                 pass
+
+            # ── Premio por nivel especial → DM ──
+            if nivel_nuevo in PREMIOS_NIVEL:
+                rango, duracion = PREMIOS_NIVEL[nivel_nuevo]
+                dm = discord.Embed(color=0xf1c40f)
+                dm.set_author(
+                    name="NightMc Network  ✦  ¡Ganaste un premio!",
+                    icon_url=message.guild.icon.url if message.guild.icon else None
+                )
+                dm.title = f"🎁  ¡Felicidades, {message.author.display_name}!"
+                dm.description = (
+                    f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"Por tu dedicación en **NightMC Network**\n"
+                    f"alcanzaste el **nivel {nivel_nuevo}** y ganaste:\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                )
+                dm.add_field(name="🏆  Rango",     value=f"> **{rango}**",    inline=True)
+                dm.add_field(name="⏳  Duración",  value=f"> **{duracion}**", inline=True)
+                dm.add_field(
+                    name="📋  ¿Cómo reclamarlo?",
+                    value=(
+                        "> Abre un ticket en el servidor con el tipo\n"
+                        "> **Pagos Tienda** y muestra este mensaje.\n"
+                        "> El staff verificará tu nivel y te dará el rango."
+                    ),
+                    inline=False
+                )
+                dm.set_thumbnail(url=message.author.display_avatar.url)
+                dm.set_image(url=BANNER_URL)
+                dm.set_footer(
+                    text="© Powered by NightMC  ✦  ¡Gracias por jugar!",
+                    icon_url=message.guild.icon.url if message.guild.icon else None
+                )
+                try:
+                    await message.author.send(embed=dm)
+                    # Aviso en el canal también
+                    aviso = discord.Embed(color=0xf1c40f)
+                    aviso.description = (
+                        f"🎁  {message.author.mention} alcanzó el **nivel {nivel_nuevo}**\n"
+                        f"y ganó el rango **{rango}** por **{duracion}**. ¡Revisa tus DMs! 📬"
+                    )
+                    await message.channel.send(embed=aviso)
+                except discord.Forbidden:
+                    # DMs cerrados — avisa en el canal
+                    aviso = discord.Embed(color=0xf39c12)
+                    aviso.description = (
+                        f"🎁  {message.author.mention} ganó el rango **{rango}** por **{duracion}**\n"
+                        f"⚠️  No pude enviarte el DM. Abre tus DMs y contacta al staff para reclamarlo."
+                    )
+                    await message.channel.send(embed=aviso)
 
     await bot.process_commands(message)
 
@@ -1497,18 +1523,17 @@ async def rank_slash(interaction: discord.Interaction, usuario: discord.Member =
     ranking = sorted(data.items(), key=lambda x: x[1].get("xp", 0), reverse=True)
     pos     = next((i+1 for i, (k, _) in enumerate(ranking) if k == str(target.id)), "?")
 
-    # Rol actual
-    rol_actual = None
-    for lvl_req, nombre_rol in reversed(ROLES_NIVEL):
+    # Premio ya obtenido (más alto alcanzado)
+    ultimo_premio = None
+    for lvl_req, (rango, dur) in sorted(PREMIOS_NIVEL.items()):
         if nivel >= lvl_req:
-            rol_actual = nombre_rol
-            break
+            ultimo_premio = (lvl_req, rango, dur)
 
-    # Próximo rol
-    prox_rol = None
-    for lvl_req, nombre_rol in ROLES_NIVEL:
+    # Próximo premio
+    prox_premio = None
+    for lvl_req, (rango, dur) in sorted(PREMIOS_NIVEL.items()):
         if nivel < lvl_req:
-            prox_rol = (lvl_req, nombre_rol)
+            prox_premio = (lvl_req, rango, dur)
             break
 
     # Color según nivel
@@ -1531,15 +1556,17 @@ async def rank_slash(interaction: discord.Interaction, usuario: discord.Member =
         value=f"{barra}\n`{xp_en_nivel}` / `{xp_necesario}` XP  ·  Faltan `{xp_necesario - xp_en_nivel}` XP",
         inline=False
     )
-    e.add_field(name="✨  XP Total",    value=f"> `{xp} XP`",                          inline=True)
-    e.add_field(name="💬  Mensajes",    value=f"> `{u.get('mensajes', 0)}`",            inline=True)
-    e.add_field(name="🏅  Rol actual",  value=f"> `{rol_actual or 'Sin rol aún'}`",     inline=True)
+    e.add_field(name="✨  XP Total",  value=f"> `{xp} XP`",              inline=True)
+    e.add_field(name="💬  Mensajes",  value=f"> `{u.get('mensajes', 0)}`", inline=True)
 
-    if prox_rol:
-        xp_falta_rol = _xp_para_nivel(prox_rol[0]) - xp
+    if ultimo_premio:
+        e.add_field(name="🏅  Último premio", value=f"> **{ultimo_premio[1]}** (nv. `{ultimo_premio[0]}`)", inline=True)
+
+    if prox_premio:
+        xp_falta = _xp_para_nivel(prox_premio[0]) - xp
         e.add_field(
-            name="🔓  Próximo rol",
-            value=f"> **{prox_rol[1]}** al nivel `{prox_rol[0]}`  ·  faltan `{max(0, xp_falta_rol)} XP`",
+            name="🎁  Próximo premio",
+            value=f"> **{prox_premio[1]}** al nivel `{prox_premio[0]}`  ·  faltan `{max(0, xp_falta)} XP`",
             inline=False
         )
 
@@ -2012,9 +2039,6 @@ async def givexp(ctx, usuario: discord.Member = None, cantidad: int = 100):
     u["nivel"]  = _nivel_desde_xp(u["xp"])
     _save_niveles(data)
 
-    # Asignar rol si subió de nivel
-    if u["nivel"] > nivel_antes:
-        await _asignar_rol_nivel(ctx.guild, usuario, u["nivel"])
 
     e = discord.Embed(color=0x2ecc71)
     e.set_author(name="NightMc Network  ✦  XP Añadido", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
@@ -2062,7 +2086,6 @@ async def setrank(ctx, usuario: discord.Member = None, nivel: int = 0):
     u["nivel"] = nivel
     _save_niveles(data)
 
-    await _asignar_rol_nivel(ctx.guild, usuario, nivel)
 
     e = discord.Embed(color=0x9b59b6)
     e.set_author(name="NightMc Network  ✦  Nivel Establecido", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
