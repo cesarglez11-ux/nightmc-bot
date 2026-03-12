@@ -405,32 +405,80 @@ ERR_COOLDOWN     = "⏳  Espera un momento antes de abrir otro ticket."
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🤖  BOT
 # ╚═══════════════════════════════════════════════════════════════╝
+
 class NightBot(commands.Bot):
+
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
         intents.members = True
-        super().__init__(command_prefix="nm!", intents=intents, help_command=None)
+
+        super().__init__(
+            command_prefix="nm!",
+            intents=intents,
+            help_command=None
+        )
+
+        # caches internas
         self._ticket_msg_ids: dict[int, int] = {}
         self._claimed_channels: dict[int, int] = {}
         self._last_rename: dict[int, float] = {}
 
     async def setup_hook(self):
+
+        # views persistentes
         self.add_view(TicketLauncher())
         self.add_view(TicketControl())
         self.add_view(GiveawayView())
-        print("✦  Bot de Tickets listo. Usa nm!sync para registrar los comandos slash.")
+
+        # sincronizar slash commands
+        try:
+            synced = await self.tree.sync()
+            print(f"✓ {len(synced)} comandos slash cargados")
+        except Exception as e:
+            print(f"✗ Error al sincronizar comandos: {e}")
+
+        print("✦ Bot de Tickets listo.")
 
     async def on_ready(self):
-        await self.change_presence(activity=discord.Activity(
-            type=discord.ActivityType.watching, name="NightMc Network 🌙"))
-        print(f"✦  Online  ·  {self.user}  ·  {self.user.id}")
 
+        if not hasattr(self, "uptime"):
+            self.uptime = datetime.datetime.utcnow()
+
+        await self.change_presence(
+            activity=discord.Activity(
+                type=discord.ActivityType.watching,
+                name="NightMc Network 🌙"
+            )
+        )
+
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print(f"🤖 Online como {self.user}")
+        print(f"🆔 ID: {self.user.id}")
+        print(f"🌍 Servidores: {len(self.guilds)}")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+
+# iniciar bot
 bot = NightBot()
 
-tickets_abiertos: dict[int, int]               = {}
-cooldowns:        dict[int, datetime.datetime]  = {}
+# caches globales
+tickets_abiertos: dict[int, int] = {}
+cooldowns: dict[int, datetime.datetime] = {}
 
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   🌍  CUANDO EL BOT ENTRA A UN SERVIDOR
+# ╚═══════════════════════════════════════════════════════════════╝
+
+@bot.event
+async def on_guild_join(guild):
+    try:
+        await bot.tree.sync(guild=guild)
+        print(f"Slash commands registrados en {guild.name}")
+    except Exception as e:
+        print(f"Error registrando comandos en {guild.name}: {e}")
+      
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🔧  UTILIDADES
 # ╚═══════════════════════════════════════════════════════════════╝
@@ -1288,213 +1336,134 @@ async def ip_slash(interaction: discord.Interaction):
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🛠️  COMANDOS DE PREFIJO
 # ╚═══════════════════════════════════════════════════════════════╝
+
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def setup(ctx):
+    """Publica el panel de tickets"""
     await ctx.send(embed=embed_setup(ctx.guild), view=TicketLauncher())
-    try: await ctx.message.delete()
-    except discord.Forbidden: pass
+
+    try:
+        await ctx.message.delete()
+    except:
+        pass
+
 
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def sync(ctx):
-    msg = await ctx.send("⏳  Registrando comandos...")
+    """Sincroniza los slash commands"""
+
     try:
-        bot.tree.copy_global_to(guild=ctx.guild)
-        synced = await bot.tree.sync(guild=ctx.guild)
-        await msg.edit(content=f"✅  **{len(synced)} comandos** registrados en **{ctx.guild.name}**.\n💡  Si no aparecen haz **Ctrl+R**.")
-        for cmd in synced:
-            print(f"  · /{cmd.name}")
+        synced = await bot.tree.sync()
+        await ctx.send(f"✅ {len(synced)} comandos sincronizados.")
     except Exception as e:
-        await msg.edit(content=f"❌  Error: {e}")
+        await ctx.send(f"❌ Error al sincronizar: {e}")
+
 
 @bot.command(name="claim")
 async def claim_prefix(ctx):
-    if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
+
+    if not es_staff(ctx.author):
+        return await ctx.send(ERR_NO_STAFF)
+
     owner_id = _get_owner_id_from_topic(ctx.channel)
+
     if ctx.author.id == owner_id and not any(r.name == "Head staff" for r in ctx.author.roles):
         return await ctx.send(ERR_PROPIO)
+
     base = await calcular_base_nombre(ctx.channel)
-    asyncio.create_task(rename_robusto(ctx.channel, f"{base}-{ctx.author.name[:12].lower()}"))
+
+    asyncio.create_task(
+        rename_robusto(ctx.channel, f"{base}-{ctx.author.name[:12].lower()}")
+    )
+
     await ctx.send(embed=embed_claimed(ctx.author, ctx.guild))
+
 
 @bot.command(name="close")
 async def close_prefix(ctx):
-    if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
+
+    if not es_staff(ctx.author):
+        return await ctx.send(ERR_NO_STAFF)
+
     owner_id = _get_owner_id_from_topic(ctx.channel)
+
     await ctx.send(embed=embed_close(ctx.guild))
+
     await cerrar_ticket(ctx.channel, ctx.guild, ctx.author, owner_id)
+
 
 @bot.command(name="transfer")
 async def transfer_prefix(ctx):
-    if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
-    await ctx.send("🔄  Usa el **botón Transferir** del ticket o el comando `/transfer`.")
+
+    if not es_staff(ctx.author):
+        return await ctx.send(ERR_NO_STAFF)
+
+    await ctx.send(
+        "🔄 Usa el **botón Transferir** del ticket o el comando `/transfer`."
+    )
+
 
 @bot.command(name="transcript")
 async def transcript_prefix(ctx):
-    if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
-    msg = await ctx.send("⏳  Generando...")
-    arch   = await hacer_transcript(ctx.channel)
+
+    if not es_staff(ctx.author):
+        return await ctx.send(ERR_NO_STAFF)
+
+    msg = await ctx.send("⏳ Generando transcript...")
+
+    arch = await hacer_transcript(ctx.channel)
+
     nombre = f"transcript-{ctx.channel.name}-{datetime.datetime.now().strftime('%Y%m%d-%H%M')}.txt"
+
     await msg.delete()
-    await ctx.send("📄  Transcript:", file=discord.File(arch, filename=nombre))
+
+    await ctx.send(
+        "📄 Transcript generado:",
+        file=discord.File(arch, filename=nombre)
+    )
+
 
 @bot.command(name="add")
 async def add_prefix(ctx, usuario: discord.Member = None):
-    if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
-    if not usuario: return await ctx.send("❌  Uso: `!add @usuario`")
+
+    if not es_staff(ctx.author):
+        return await ctx.send(ERR_NO_STAFF)
+
+    if not usuario:
+        return await ctx.send("❌ Uso: `nm!add @usuario`")
+
     try:
-        await ctx.channel.set_permissions(usuario, read_messages=True, send_messages=True)
-        await ctx.send(f"✅  {usuario.mention} fue añadido.")
+        await ctx.channel.set_permissions(
+            usuario,
+            read_messages=True,
+            send_messages=True
+        )
+
+        await ctx.send(f"✅ {usuario.mention} fue añadido al ticket.")
+
     except discord.Forbidden:
-        await ctx.send("❌  Sin permisos.")
+        await ctx.send("❌ Sin permisos.")
+
 
 @bot.command(name="remove")
 async def remove_prefix(ctx, usuario: discord.Member = None):
-    if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
-    if not usuario: return await ctx.send("❌  Uso: `!remove @usuario`")
+
+    if not es_staff(ctx.author):
+        return await ctx.send(ERR_NO_STAFF)
+
+    if not usuario:
+        return await ctx.send("❌ Uso: `nm!remove @usuario`")
+
     try:
         await ctx.channel.set_permissions(usuario, overwrite=None)
-        await ctx.send(f"🚫  {usuario.mention} eliminado.")
+
+        await ctx.send(f"🚫 {usuario.mention} fue eliminado.")
+
     except discord.Forbidden:
-        await ctx.send("❌  Sin permisos.")
+        await ctx.send("❌ Sin permisos.")
 
-@bot.command(name="rename")
-async def rename_prefix(ctx, *, nombre: str = None):
-    if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
-    if not nombre: return await ctx.send("❌  Uso: `!rename nuevo-nombre`")
-    try:
-        await ctx.channel.edit(name=nombre.lower().replace(" ", "-")[:50])
-        await ctx.send("✏️  Canal renombrado.")
-    except (discord.Forbidden, discord.HTTPException) as e:
-        await ctx.send(f"❌  {e}")
-
-@bot.command(name="slowmode")
-async def slowmode_prefix(ctx, segundos: int = 0):
-    if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
-    segundos = max(0, min(segundos, 21600))
-    try:
-        await ctx.channel.edit(slowmode_delay=segundos)
-        await ctx.send(f"🐢  Slowmode: **{segundos}s**." if segundos else "✅  Slowmode desactivado.")
-    except discord.Forbidden:
-        await ctx.send("❌  Sin permisos.")
-
-@bot.command(name="help", aliases=["ayuda"])
-async def help_prefix(ctx):
-    try: await ctx.message.delete()
-    except discord.Forbidden: pass
-    await ctx.author.send(embed=_build_help(ctx.guild, ctx.author))
-
-@bot.command(name="ip")
-async def ip_prefix(ctx):
-    await ctx.send(embed=_build_ip_embed())
-
-@bot.command(name="ping")
-async def ping_prefix(ctx):
-    latencia = round(bot.latency * 1000)
-    e = discord.Embed(color=COLOR_OK)
-    e.title = "🏓  Pong!"
-    e.description = f"> Latencia del bot: **{latencia}ms**"
-    e.set_footer(text=FOOTER)
-    await ctx.send(embed=e)
-
-@bot.tree.command(name="ping", description="Muestra la latencia del bot")
-async def ping_slash(interaction: discord.Interaction):
-    latencia = round(bot.latency * 1000)
-    e = discord.Embed(color=COLOR_OK)
-    e.title = "🏓  Pong!"
-    e.description = f"> Latencia del bot: **{latencia}ms**"
-    e.set_footer(text=FOOTER)
-    await interaction.response.send_message(embed=e, ephemeral=True)
-
-@bot.command(name="info")
-async def info_prefix(ctx):
-    e = discord.Embed(title="ℹ️  NightMc Network — Info del Bot", color=COLOR_BLUE)
-    e.set_author(name="NightMc Network", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
-    e.description = (
-        f"> **Bot:** {bot.user.mention}\n"
-        f"> **Servidores:** {len(bot.guilds)}\n"
-        f"> **Latencia:** {round(bot.latency * 1000)}ms\n"
-        f"> **Prefijo:** `nm!`\n"
-        f"> **Slash:** `/`"
-    )
-    e.set_footer(text=FOOTER)
-    await ctx.send(embed=e)
-
-@bot.tree.command(name="info", description="Muestra información del bot")
-async def info_slash(interaction: discord.Interaction):
-    e = discord.Embed(title="ℹ️  NightMc Network — Info del Bot", color=COLOR_BLUE)
-    e.set_author(name="NightMc Network", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
-    e.description = (
-        f"> **Bot:** {bot.user.mention}\n"
-        f"> **Servidores:** {len(bot.guilds)}\n"
-        f"> **Latencia:** {round(bot.latency * 1000)}ms\n"
-        f"> **Prefijo:** `nm!`\n"
-        f"> **Slash:** `/`"
-    )
-    e.set_footer(text=FOOTER)
-    await interaction.response.send_message(embed=e, ephemeral=True)
-
-def _build_rules_mc(guild):
-    e = discord.Embed(color=COLOR_BASE)
-    e.set_author(name="NightMc Network  ✦  Reglamento", icon_url=guild.icon.url if guild.icon else None)
-    e.title = "⚔️  Reglas del Servidor Minecraft — NightMC"
-    e.description = f"Lee y respeta estas normas. El desconocimiento no exime de sanciones.\n{SEP}"
-    e.add_field(name="1️⃣  Respeto y juego limpio", value="> No insultos, acoso, trampas ni comportamientos que afecten a otros jugadores.", inline=False)
-    e.add_field(name="2️⃣  Prohibido hacks o exploits", value="> Hacks, mods ilegales o glitches serán sancionados inmediatamente.", inline=False)
-    e.add_field(name="3️⃣  Protección de construcciones", value="> No destruir, robar construcciones ni cofres ajenos. Respeta las zonas protegidas.", inline=False)
-    e.add_field(name="4️⃣  No publicidad", value="> Prohibido promocionar otros servidores, tiendas o servicios sin permiso del staff.", inline=False)
-    e.add_field(name="5️⃣  Autoridad del staff", value="> Administradores y moderadores tienen la última palabra en disputas. Respeta sus decisiones.", inline=False)
-    e.add_field(name="6️⃣  Respeto en chats y voz", value="> Lenguaje ofensivo, spam o contenido inapropiado en cualquier canal está prohibido.", inline=False)
-    e.add_field(name="7️⃣  Reportes", value="> Reporta conflictos o exploits al staff de forma responsable. No difundas rumores.", inline=False)
-    e.add_field(name="8️⃣  Sanciones", value="> Según la gravedad: advertencia, expulsión temporal, baneo temporal o **permanente**.", inline=False)
-    e.set_image(url=BANNER_URL)
-    e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
-    return e
-
-def _build_rules_dc(guild):
-    e = discord.Embed(color=COLOR_BLUE)
-    e.set_author(name="NightMc Network  ✦  Reglamento", icon_url=guild.icon.url if guild.icon else None)
-    e.title = "💬  Reglas de Discord — NightMC"
-    e.description = f"Lee y respeta estas normas. El desconocimiento no exime de sanciones.\n{SEP}"
-    e.add_field(name="1️⃣  Respeto absoluto", value="> Prohibido insultar, acosar o discriminar por raza, género, orientación, religión u opinión.", inline=False)
-    e.add_field(name="2️⃣  Uso correcto de canales", value="> Publica solo en el canal correspondiente. Evita spam, off-topic o mensajes repetitivos.", inline=False)
-    e.add_field(name="3️⃣  Contenido inapropiado", value="> Prohibido contenido NSFW, violento, ilegal o que infrinja derechos de autor.", inline=False)
-    e.add_field(name="4️⃣  No publicidad no autorizada", value="> No promociones servidores, productos o servicios sin autorización del staff.", inline=False)
-    e.add_field(name="5️⃣  Nombres y avatares", value="> Los ofensivos o explícitos serán modificados o sancionados.", inline=False)
-    e.add_field(name="6️⃣  Instrucciones del staff", value="> Respetar las indicaciones de moderadores y administradores. Incumplirlas genera sanciones.", inline=False)
-    e.add_field(name="7️⃣  Privacidad", value="> No compartas información personal propia ni de terceros (dirección, teléfono, cuentas, etc.).", inline=False)
-    e.add_field(name="8️⃣  Sanciones", value="> Según la gravedad: advertencia, mute temporal, expulsión o **baneo permanente**.", inline=False)
-    e.set_image(url=BANNER_URL)
-    e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
-    return e
-
-@bot.command(name="rules", aliases=["reglas"])
-async def rules_prefix(ctx, tipo: str = "dc"):
-    if tipo.lower() in ("mc", "minecraft"):
-        await ctx.send(embed=_build_rules_mc(ctx.guild))
-    else:
-        await ctx.send(embed=_build_rules_dc(ctx.guild))
-
-@bot.tree.command(name="rules", description="Muestra las reglas del servidor")
-@discord.app_commands.describe(tipo="'dc' para Discord, 'mc' para Minecraft")
-@discord.app_commands.choices(tipo=[
-    discord.app_commands.Choice(name="Discord", value="dc"),
-    discord.app_commands.Choice(name="Minecraft", value="mc"),
-])
-async def rules_slash(interaction: discord.Interaction, tipo: str = "dc"):
-    if tipo == "mc":
-        await interaction.response.send_message(embed=_build_rules_mc(interaction.guild))
-    else:
-        await interaction.response.send_message(embed=_build_rules_dc(interaction.guild))
-
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandNotFound):
-        return
-    if isinstance(error, commands.MissingPermissions):
-        return await ctx.send("❌  Sin permisos.")
-    raise error
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎉  GIVEAWAYS
