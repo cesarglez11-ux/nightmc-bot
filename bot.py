@@ -2080,22 +2080,70 @@ async def setrank(ctx, usuario: discord.Member = None, nivel: int = 0):
 
     data = _load_niveles()
     u    = _get_user_xp(data, usuario.id)
-
-    # Poner XP justo al inicio del nivel pedido
     u["xp"]    = _xp_para_nivel(nivel)
     u["nivel"] = nivel
     _save_niveles(data)
 
+    # Premio correspondiente a este nivel exacto
+    premio_txt = ""
+    if nivel in PREMIOS_NIVEL:
+        rango, dur = PREMIOS_NIVEL[nivel]
+        premio_txt = f"\n> 🎁  Premio de este nivel: **{rango}** por **{dur}**"
 
     e = discord.Embed(color=0x9b59b6)
     e.set_author(name="NightMc Network  ✦  Nivel Establecido", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
     e.description = (
         f"✅  {usuario.mention} fue puesto en **nivel {nivel}**\n"
-        f"> XP asignado: `{u['xp']}`\n"
-        f"> Rol de nivel asignado automáticamente."
+        f"> XP asignado: `{u['xp']}`{premio_txt}"
     )
     e.set_footer(text=FOOTER)
     await ctx.send(embed=e)
+
+@bot.command(name="testpremio")
+@commands.has_permissions(administrator=True)
+async def testpremio(ctx, usuario: discord.Member = None, nivel: int = 25):
+    """Envía el DM de premio de un nivel específico. Uso: nm!testpremio @usuario 25"""
+    if not usuario:
+        return await ctx.send("❌  Uso: `nm!testpremio @usuario nivel`\nNiveles con premio: 25, 50, 75, 100")
+    if nivel not in PREMIOS_NIVEL:
+        niveles_str = ", ".join(str(n) for n in PREMIOS_NIVEL)
+        return await ctx.send(f"❌  Ese nivel no tiene premio. Niveles disponibles: `{niveles_str}`")
+
+    rango, duracion = PREMIOS_NIVEL[nivel]
+    dm = discord.Embed(color=0xf1c40f)
+    dm.set_author(
+        name="NightMc Network  ✦  ¡Ganaste un premio!",
+        icon_url=ctx.guild.icon.url if ctx.guild.icon else None
+    )
+    dm.title = f"🎁  ¡Felicidades, {usuario.display_name}!"
+    dm.description = (
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Por tu dedicación en **NightMC Network**\n"
+        f"alcanzaste el **nivel {nivel}** y ganaste:\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    dm.add_field(name="🏆  Rango",    value=f"> **{rango}**",    inline=True)
+    dm.add_field(name="⏳  Duración", value=f"> **{duracion}**", inline=True)
+    dm.add_field(
+        name="📋  ¿Cómo reclamarlo?",
+        value=(
+            "> Abre un ticket en el servidor con el tipo\n"
+            "> **Pagos Tienda** y muestra este mensaje.\n"
+            "> El staff verificará tu nivel y te dará el rango."
+        ),
+        inline=False
+    )
+    dm.set_thumbnail(url=usuario.display_avatar.url)
+    dm.set_image(url=BANNER_URL)
+    dm.set_footer(
+        text="© Powered by NightMC  ✦  ¡Gracias por jugar!",
+        icon_url=ctx.guild.icon.url if ctx.guild.icon else None
+    )
+    try:
+        await usuario.send(embed=dm)
+        await ctx.send(f"✅  DM de premio enviado a {usuario.mention} *(nivel {nivel} — {rango})*")
+    except discord.Forbidden:
+        await ctx.send(f"❌  No se pudo enviar DM a {usuario.mention}. Tiene los DMs cerrados.")
 
 @bot.command(name="resetxp")
 @commands.has_permissions(administrator=True)
