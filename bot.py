@@ -1466,7 +1466,7 @@ async def on_message(message: discord.Message):
                     name="NightMc Network  ✦  ¡Ganaste un premio!",
                     icon_url=message.guild.icon.url if message.guild.icon else None
                 )
-                dm.title = f"🎁  ¡Felicidades, {message.author.display_name}!"
+                dm.title = f"🎁  ¡Felicidades, @{message.author.name}!"
                 dm.description = (
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"Por tu actividad en **NightMC Network**\n"
@@ -2127,7 +2127,7 @@ async def testpremio(ctx, usuario: discord.Member = None, nivel: int = 25):
         name="NightMc Network  ✦  ¡Ganaste un premio!",
         icon_url=ctx.guild.icon.url if ctx.guild.icon else None
     )
-    dm.title = f"🎁  ¡Felicidades, {usuario.display_name}!"
+    dm.title = f"🎁  ¡Felicidades, @{usuario.name}!"
     dm.description = (
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"Por tu actividad en **NightMC Network**\n"
