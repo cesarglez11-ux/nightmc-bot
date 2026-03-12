@@ -67,6 +67,7 @@ CAT_PAGOS        = "💰 Pagos Tienda"
 CAT_POSTULACION  = "📋 Postulaciones Staff"
 CAT_ALIANZA      = "🤝 Alianzas"
 CAT_EVENTO       = "🎉 Eventos"
+CAT_REWARDS      = "🎁 Rewards"
 CAT_BOTS         = "🤖 Soporte Bots"
 CAT_BOTS_HEAD    = "⚙️ Escalación de Bots"
 CAT_TRANSFER     = "🔄 TRANSFERIDOS"
@@ -79,7 +80,7 @@ CATEGORIAS_TICKET = {
     "pagos_tienda": CAT_PAGOS,
     "postulacion":  CAT_POSTULACION,
     "alianza":      CAT_ALIANZA,
-    "evento":       CAT_EVENTO,
+    "evento":       CAT_REWARDS,
     "bots":         CAT_BOTS,
 }
 ROLES_TICKET = {
@@ -406,7 +407,7 @@ def embed_setup(guild):
         "┃  💰  **Pagos Tienda** — Compras, rangos, problemas\n"
         "┃  📋  **Postulaciones Staff** — Dudas sobre el proceso de postulación\n"
         "┃  🤝  **Alianzas** — Propuestas de colaboración\n"
-        "┃  🎉  **Eventos** — Premios no recibidos, participación\n"
+        "┃  🎁  **Rewards** — Premios por actividad, eventos\n"
         "┃  🤖  **Soporte de Bots** — Bugs o errores en los bots\n"
         "\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -987,8 +988,8 @@ class TicketLauncher(ui.View):
                        emoji="📋", description="Dudas sobre el proceso de postulación"),
                    discord.SelectOption(label="Alianzas",             value="alianza",
                        emoji="🤝", description="Propuestas de colaboración"),
-                   discord.SelectOption(label="Eventos",              value="evento",
-                       emoji="🎉", description="Premios no recibidos, participación"),
+                   discord.SelectOption(label="Rewards",              value="evento",
+                       emoji="🎁", description="Premios por actividad en el servidor"),
                    discord.SelectOption(label="Soporte de Bots",      value="bots",
                        emoji="🤖", description="Bugs, errores o mal funcionamiento de bots"),
                ])
@@ -1465,10 +1466,10 @@ async def on_message(message: discord.Message):
                     name="NightMc Network  ✦  ¡Ganaste un premio!",
                     icon_url=message.guild.icon.url if message.guild.icon else None
                 )
-                dm.title = f"🎁  ¡Felicidades, {message.author.display_name}!"
+                dm.title = f"🎁  ¡Felicidades, {message.author.mention}!"
                 dm.description = (
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"Por tu dedicación en **NightMC Network**\n"
+                    f"Por tu actividad en **NightMC Network**\n"
                     f"alcanzaste el **nivel {nivel_nuevo}** y ganaste:\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 )
@@ -2126,10 +2127,10 @@ async def testpremio(ctx, usuario: discord.Member = None, nivel: int = 25):
         name="NightMc Network  ✦  ¡Ganaste un premio!",
         icon_url=ctx.guild.icon.url if ctx.guild.icon else None
     )
-    dm.title = f"🎁  ¡Felicidades, {usuario.display_name}!"
+    dm.title = f"🎁  ¡Felicidades, {usuario.mention}!"
     dm.description = (
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"Por tu dedicación en **NightMC Network**\n"
+        f"Por tu actividad en **NightMC Network**\n"
         f"alcanzaste el **nivel {nivel}** y ganaste:\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
