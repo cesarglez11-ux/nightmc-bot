@@ -2211,3 +2211,53 @@ if not TOKEN:
     exit(1)
 
 bot.run(TOKEN)
+
+@bot.command(name="resetxpall")
+@commands.has_permissions(administrator=True)
+async def resetxpall(ctx):
+    """Resetea el XP y nivel de TODOS los usuarios a 0. Requiere confirmación."""
+    e = discord.Embed(color=COLOR_DANGER)
+    e.set_author(name="NightMc Network  ✦  ⚠️  Confirmación requerida",
+                 icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+    e.title = "🗑️  Resetear XP de todos los usuarios"
+    e.description = (
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Esta acción reseteará el **XP, nivel y mensajes**\n"
+        "de **todos los usuarios** del servidor a **0**.\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "> ⚠️  **Esta acción es irreversible.**\n"
+        "> Escribe `confirmar` en los próximos **30 segundos** para continuar.\n"
+        "> Cualquier otro mensaje cancelará la operación."
+    )
+    e.set_footer(text=FOOTER, icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+    await ctx.send(embed=e)
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    try:
+        respuesta = await bot.wait_for("message", timeout=30.0, check=check)
+    except asyncio.TimeoutError:
+        return await ctx.send("⏰  Tiempo agotado. Operación cancelada.")
+
+    if respuesta.content.strip().lower() != "confirmar":
+        return await ctx.send("❌  Operación cancelada.")
+
+    data = _load_niveles()
+    total = len(data)
+    for uid in data:
+        data[uid] = {"xp": 0, "nivel": 0, "mensajes": 0}
+    _save_niveles(data)
+
+    e2 = discord.Embed(color=COLOR_OK)
+    e2.set_author(name="NightMc Network  ✦  Reset completado",
+                  icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+    e2.description = (
+        f"✅  XP reseteado correctamente.\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"> 👥  Usuarios afectados: **{total}**\n"
+        f"> 📊  Todos en nivel `0` con `0 XP`\n"
+        f"> 🕐  Ejecutado por: {ctx.author.mention}"
+    )
+    e2.set_footer(text=FOOTER, icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+    await ctx.send(embed=e2)
