@@ -43,10 +43,10 @@ CANALES_XP = {
 
 # Premios por nivel — DM al usuario
 PREMIOS_NIVEL = {
-    25:  ("Lunar",    "1 día"),
-    50:  ("Dark",     "1 día"),
-    75:  ("Eclipse",  "1 día"),
-    100: ("Eclipse+", "1 semana"),
+    25:  ("Lunar", "1 día"),
+    50:  ("Dark",  "1 día"),
+    75:  ("Lunar", "1 semana"),
+    100: ("Dark",  "1 semana"),
 }
 
 def _xp_para_nivel(nivel: int) -> int:
@@ -74,7 +74,7 @@ CAT_APELACION    = "➢ APELACIONES"
 CAT_PAGOS        = "➢ PAGOS TIENDA"
 CAT_POSTULACION  = "➢ POSTULACIONES STAFF"
 CAT_ALIANZA      = "➢ ALIANZAS"
-CAT_APELACION     = "➢ APELACIONES"
+CAT_EVENTO       = "➢ APELACIONES"
 CAT_REWARDS      = "➢ REWARDS"
 CAT_BOTS         = "➢ SOPORTE BOTS"
 CAT_BOTS_HEAD    = "➢ ESCALACIÓN DE BOTS"
@@ -88,7 +88,7 @@ CATEGORIAS_TICKET = {
     "pagos_tienda": CAT_PAGOS,
     "postulacion":  CAT_POSTULACION,
     "alianza":      CAT_ALIANZA,
-    "rewards":       CAT_REWARDS,
+    "evento":       CAT_REWARDS,
     "bots":         CAT_BOTS,
 }
 ROLES_TICKET = {
@@ -98,12 +98,12 @@ ROLES_TICKET = {
     "pagos_tienda": ("Head staff",   False),
     "postulacion":  ("Medium Staff", True),
     "alianza":      ("Head staff",   False),
-    "reward":       ("Low staff",    True),
+    "evento":       ("Low staff",    True),
     "bots":         ("Medium Staff", False),
 }
 MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
-    "ganadores-rewards":   ("Head staff",  "🎖️ Escalación - Ganadores de recompensas",  "🎖️  Ganadores de recompensas"),
+    "ganadores-eventos":   ("Head staff",  "🎖️ Escalación - Ganadores de Eventos",  "🎖️  Ganadores de Eventos"),
     "unregister":          ("Head staff",  "🔐 Escalación - Unregister",             "🔐  Unregister"),
     "reembolso":           ("Head staff",  "💸 Escalación - Reembolso",              "💸  Reembolso"),
     "staff-report":        ("Head staff",  "🚨 Escalación - Staff Report",           "🚨  Staff Report"),
@@ -268,23 +268,23 @@ def embed_ticket_alianza(guild, user, rol_tag, campos):
     e.set_image(url=BANNER_URL)
     return _footer(e, guild)
 
-def embed_ticket_rewards(guild, user, rol_tag, campos):
+def embed_ticket_evento(guild, user, rol_tag, campos):
     e = discord.Embed(color=COLOR_BASE)
     e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
-    e.title = "🎉  Soporte de Recompensas — NightMC Network"
+    e.title = "🎉  Soporte de Eventos — NightMC Network"
     e.description = (
-        f"Buenas {user.mention}. Tu solicitud de Recompensa será atendida por {rol_tag}.\n"
+        f"Buenas {user.mention}. Tu solicitud de evento será atendida por {rol_tag}.\n"
         f"Verificaremos tu participación y el premio correspondiente."
     )
     e.add_field(name=SEP, value="\u200b", inline=False)
     e.add_field(name="👤  Staff responsable",  value=f"> {rol_tag}", inline=False)
     e.add_field(name="🎮  Nick",               value=f"```{campos.get('Nick','—')}```", inline=True)
-    e.add_field(name="🎪  Nombre de la recompensa", value=f"```{campos.get('Recompensa','—')}```", inline=True)
+    e.add_field(name="🎪  Nombre del evento",  value=f"```{campos.get('Evento','—')}```", inline=True)
     e.add_field(name="🏆  Premio esperado",    value=f"```{campos.get('Premio','—')}```", inline=False)
     e.add_field(name="📋  Descripción",        value=f"```{campos.get('Descripcion','—')}```", inline=False)
     e.add_field(name=SEP, value=(
         "> 📸  Adjunta pruebas de participación si las tienes.\n"
-        "> ⏳  Verificaremos los registros de las Recompensas.\n"
+        "> ⏳  Verificaremos los registros del evento.\n"
         "> 🙏  Gracias por participar en **NightMC Network**."
     ), inline=False)
     e.set_thumbnail(url=user.display_avatar.url)
@@ -321,7 +321,7 @@ EMBED_TICKET = {
     "pagos_tienda": embed_ticket_pagos,
     "postulacion":  embed_ticket_postulacion,
     "alianza":      embed_ticket_alianza,
-    "reward":       embed_ticket_reward,
+    "evento":       embed_ticket_evento,
     "bots":         embed_ticket_bots,
 }
 
@@ -361,7 +361,7 @@ def embed_transfer_menu(guild):
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
     e.add_field(name="👑  Head staff — Gestiones Críticas", value=(
-        "> 🎖️  **Ganadores de Recompensas** — Premio no entregado tras un evento o recompensa por actividad\n"
+        "> 🎖️  **Ganadores de Eventos** — Premio no entregado tras un evento\n"
         "> 🔐  **Unregister** — Recuperación o desvinculación de cuenta\n"
         "> 💸  **Reembolso** — Devolución de compra en tienda\n"
         "> 🚨  **Staff Report** — Reporte formal contra un miembro del staff\n"
@@ -415,7 +415,7 @@ def embed_setup(guild):
         "┃  💰  **Pagos Tienda** — Compras, rangos, problemas\n"
         "┃  📋  **Postulaciones Staff** — Dudas sobre el proceso de postulación\n"
         "┃  🤝  **Alianzas** — Propuestas de colaboración\n"
-        "┃  🎁  **Rewards** — Premios por actividad, rewards\n"
+        "┃  🎁  **Rewards** — Premios por actividad, eventos\n"
         "┃  🤖  **Soporte de Bots** — Bugs o errores en los bots\n"
         "\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -775,7 +775,7 @@ class TransferView(ui.View):
         select = ui.Select(
             placeholder="✦  Selecciona el tipo de gestión...",
             options=[
-                discord.SelectOption(label="Ganadores de Rewards",   value="ganadores-rewards",
+                discord.SelectOption(label="Ganadores de Eventos",   value="ganadores-eventos",
                     emoji="🎖️", description="👑 Head staff — Premio no entregado"),
                 discord.SelectOption(label="Unregister",             value="unregister",
                     emoji="🔐", description="👑 Head staff — Recuperación de cuenta"),
@@ -950,16 +950,16 @@ class AlianzaModal(ui.Modal, title="NightMc  ·  Propuesta de Alianza"):
             {"Servidor": self.servidor.value, "Miembros": self.miembros.value,
              "Propuesta": self.propuesta.value}, "alianza")
 
-class RewardModal(ui.Modal, title="NightMc  ·  Soporte de Recompensas"):
+class EventoModal(ui.Modal, title="NightMc  ·  Soporte de Eventos"):
     nick   = ui.TextInput(label="Nick",              placeholder="Tu nick en Minecraft")
-    reward = ui.TextInput(label="Nombre de la recompensa", placeholder="¿Qué recompensa no obtuviste o requieres?")
+    evento = ui.TextInput(label="Nombre del evento", placeholder="¿En qué evento participaste?")
     premio = ui.TextInput(label="Premio esperado",   placeholder="¿Qué premio te corresponde?")
     desc   = ui.TextInput(label="Descripción",       placeholder="Explica el problema con detalle",
                           style=discord.TextStyle.paragraph)
     async def on_submit(self, i):
-        await crear_ticket(i, "reward",
-            {"Nick": self.nick.value, "Reward": self.reward.value,
-             "Premio": self.premio.value, "Descripcion": self.desc.value}, "reward")
+        await crear_ticket(i, "evento",
+            {"Nick": self.nick.value, "Evento": self.evento.value,
+             "Premio": self.premio.value, "Descripcion": self.desc.value}, "evento")
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎡  MENÚ PRINCIPAL — Dropdown
@@ -996,7 +996,7 @@ class TicketLauncher(ui.View):
                        emoji="📋", description="Dudas sobre el proceso de postulación"),
                    discord.SelectOption(label="Alianzas",             value="alianza",
                        emoji="🤝", description="Propuestas de colaboración"),
-                   discord.SelectOption(label="Rewards",              value="reward",
+                   discord.SelectOption(label="Rewards",              value="evento",
                        emoji="🎁", description="Premios por actividad en el servidor"),
                    discord.SelectOption(label="Soporte de Bots",      value="bots",
                        emoji="🤖", description="Bugs, errores o mal funcionamiento de bots"),
@@ -1009,7 +1009,7 @@ class TicketLauncher(ui.View):
             "pagos_tienda": PagosTiendaModal(),
             "postulacion":  PostulacionModal(),
             "alianza":      AlianzaModal(),
-            "reward":       RewardModal(),
+            "evento":       EventoModal(),
             "bots":         BotsModal(),
         }
         await interaction.response.send_modal(modales[select.values[0]])
@@ -1186,6 +1186,8 @@ def _build_ip_embed():
     e.add_field(name="🟩  Bedrock",       value="> ⏳ **Próximamente...**",                       inline=True)
     e.add_field(name="\u200b", value="\u200b", inline=False)
     e.add_field(name="🎮  Modalidades",   value="> ⚔️  **ClashBox** — Disponible\n> 🗡️  **FullPvP** — Próximamente", inline=True)
+    e.add_field(name="🛒  Tienda",        value="> 💳  [nightmc-network.tebex.io](https://nightmc-network.tebex.io/)", inline=True)
+    e.add_field(name="\u200b", value="\u200b", inline=False)
     e.add_field(name="🔗  Redes",         value="> 💬  [Discord](https://discord.gg/2r2byXBgsv)\n> 🔴  [YouTube](https://www.youtube.com/@NightMCNetwork-me)", inline=True)
     e.set_image(url="https://i.imgur.com/WxEp4MV.png")
     e.set_footer(text="© Powered by NightMC")
