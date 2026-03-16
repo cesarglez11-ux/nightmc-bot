@@ -649,10 +649,9 @@ async def resetear_claim_en_canal(canal: discord.TextChannel, nombre_canal: str,
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎫  CREAR TICKET
 # ╚═══════════════════════════════════════════════════════════════╝
-async def crear_ticket(interaction: discord.Interaction,
-                       tipo: str, campos: dict, nombre_canal: str):
+async def crear_ticket(interaction: discord.Interaction, tipo: str, campos: dict, nombre_canal: str):
     guild = interaction.guild
-    user  = interaction.user
+    user = interaction.user
     await interaction.response.defer(ephemeral=True)
     if en_cooldown(user.id):
         return await interaction.followup.send(ERR_COOLDOWN, ephemeral=True)
@@ -666,39 +665,43 @@ async def crear_ticket(interaction: discord.Interaction,
         return await interaction.followup.send(ERR_NO_CAT, ephemeral=True)
     nombre_rol_esp, usar_st = ROLES_TICKET.get(tipo, (None, True))
     rol_esp = discord.utils.get(guild.roles, name=nombre_rol_esp) if nombre_rol_esp else None
-    rol_st  = discord.utils.get(guild.roles, name=STAFF_TEAM)
+    rol_st = discord.utils.get(guild.roles, name=STAFF_TEAM)
     perms = {
         guild.default_role: discord.PermissionOverwrite(read_messages=False),
-        guild.me:           discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
-        user:               discord.PermissionOverwrite(read_messages=True, send_messages=True, attach_files=True),
+        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
+        user: discord.PermissionOverwrite(read_messages=True, send_messages=True, attach_files=True),
     }
-    if rol_esp:            perms[rol_esp] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-    if usar_st and rol_st: perms[rol_st]  = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
-# Solo poner permiso de solo lectura si NO es High Staff ni Head staff
-if rol_solo_lectura and not (nombre_rol_esp in ["High Staff", "Head staff"]):
-    perms[rol_solo_lectura] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
+    if rol_esp:
+        perms[rol_esp] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+    if usar_st and rol_st:
+        perms[rol_st] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+    rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
+    # Solo poner permiso de solo lectura si NO es High Staff ni Head staff
+    if rol_solo_lectura and not (nombre_rol_esp in ["High Staff", "Head staff"]):
+        perms[rol_solo_lectura] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
     try:
         canal = await guild.create_text_channel(
             name=f"{nombre_canal}-pendiente",
             category=cat, overwrites=perms,
-            topic=f"tipo:{tipo} | ownerid:{user.id}")
+            topic=f"tipo:{tipo} | ownerid:{user.id}"
+        )
     except discord.Forbidden:
-        return await interaction.followup.send("❌  Sin permisos para crear canales.", ephemeral=True)
+        return await interaction.followup.send("❌ Sin permisos para crear canales.", ephemeral=True)
     tickets_abiertos[user.id] = canal.id
-    cooldowns[user.id]        = datetime.datetime.now()
-    rol_tag = (rol_st.mention  if usar_st and rol_st else
+    cooldowns[user.id] = datetime.datetime.now()
+    rol_tag = (rol_st.mention if usar_st and rol_st else
                rol_esp.mention if rol_esp else f"@{STAFF_TEAM}")
     view = TicketControl(nombre_canal=nombre_canal, owner_id=user.id)
-    msg  = await canal.send(
-        content=f"{user.mention}  {rol_tag}",
+    msg = await canal.send(
+        content=f"{user.mention} {rol_tag}",
         embed=EMBED_TICKET[tipo](guild, user, rol_tag, campos),
-        view=view)
+        view=view
+    )
     bot._ticket_msg_ids[canal.id] = msg.id
-    await interaction.followup.send(f"✅  Tu ticket fue abierto en {canal.mention}", ephemeral=True)
-    log_e = discord.Embed(title="📥  Ticket Abierto", color=COLOR_OK, timestamp=datetime.datetime.now())
-    log_e.add_field(name="Usuario",   value=user.mention,                             inline=True)
-    log_e.add_field(name="Canal",     value=canal.mention,                            inline=True)
+    await interaction.followup.send(f"✅ Tu ticket fue abierto en {canal.mention}", ephemeral=True)
+    log_e = discord.Embed(title="📥 Ticket Abierto", color=COLOR_OK, timestamp=datetime.datetime.now())
+    log_e.add_field(name="Usuario", value=user.mention, inline=True)
+    log_e.add_field(name="Canal", value=canal.mention, inline=True)
     log_e.add_field(name="Categoría", value=CATEGORIAS_TICKET.get(tipo, CAT_SOPORTE), inline=True)
     log_e.set_footer(text=FOOTER)
     await enviar_log(guild, log_e)
