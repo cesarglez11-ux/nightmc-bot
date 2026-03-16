@@ -1250,7 +1250,7 @@ async def close_prefix(ctx):
 @bot.command(name="transfer")
 async def transfer_prefix(ctx):
     if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
-    await ctx.send("🔄  Usa el **botón Transferir** del ticket o el comando `/transfer`.")
+    await ctx.send("🔄  Usa el **botón Transferir** del ticket.")
 @bot.command(name="specifictag_staff")
 async def specifictag_staff(ctx, staff: discord.Member = None):
     if not es_staff(ctx.author):
