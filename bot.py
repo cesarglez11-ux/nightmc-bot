@@ -111,7 +111,7 @@ TRANSFER_SUBS = {
     "revives": ("High Staff", "➢ REVIVES", "💊 Revives"),
     "cambio-nick": ("High Staff", "➢ CAMBIO NICK", "✏️ Cambio de Nick"),
     "bug-bot-critico": ("Head staff", "➢ BUG BOT CRITICO", "🚨 Bug Crítico de Bot"),
-    "ver-owner": ("Head staff", "➢ VER OWNER", "👁️ Ver Owner del Ticket"),
+    "ver-owner": ("Head staff", "➢ VER OWNER", "👁️ Ver Owner"),
 }
 STAFF_TEAM        = "Staff team"
 ROL_SOPORTE       = "| Soporte"
@@ -376,7 +376,7 @@ def embed_transfer_menu(guild):
         "> ⚙️  El caso será revisado por **Head staff** en canal exclusivo"
     ), inline=False)
     e.add_field(name="👁️  Utilidades — Head staff", value=(
-        "> 👤  **Ver Owner del Ticket** — Consulta quién abrió este ticket sin moverlo"
+        "> 👤  **Ver Owner** — Consulta quién abrió este ticket sin moverlo"
     ), inline=False)
     e.add_field(name="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", value=(
         "> ⚠️  Solo transfiere si el caso **supera tus permisos**\n"
@@ -796,7 +796,7 @@ class TransferView(ui.View):
                                     emoji="✏️", description="🔰 High staff — Cambiar nick vinculado"),
                 discord.SelectOption(label="Bug Critico de Bot", value="bug-bot-critico",
                                     emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
-                discord.SelectOption(label="Ver Owner del Ticket", value="ver-owner",
+                discord.SelectOption(label="Ver Owner", value="ver-owner",
                                     emoji="🔎", description="👑 Head staff — Ver quien abrio este ticket"),
             ]
         )
