@@ -103,15 +103,15 @@ ROLES_TICKET = {
 }
 MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
-    "ganadores-eventos":   ("Head staff",  "🎖️ Escalación - Ganadores de Eventos",  "🎖️  Ganadores de Eventos"),
-    "unregister":          ("Head staff",  "🔐 Escalación - Unregister",             "🔐  Unregister"),
-    "reembolso":           ("Head staff",  "💸 Escalación - Reembolso",              "💸  Reembolso"),
-    "staff-report":        ("Head staff",  "🚨 Escalación - Staff Report",           "🚨  Staff Report"),
-    "error-config":        ("Head staff",  "⚠️ Escalación - Error de Config",        "⚠️  Error de Configuración"),
-    "revives":             ("High Staff",  "💊 Escalación - Revives",                "💊  Revives"),
-    "cambio-nick":         ("High Staff",  "✏️ Escalación - Cambio de Nick",         "✏️  Cambio de Nick"),
-    "bug-bot-critico":     ("Head staff",  CAT_BOTS_HEAD,                            "🚨  Bug Crítico de Bot"),
-    "ver-owner":           ("Head staff",  None,                                     "👁️  Ver Owner del Ticket"),
+    "ganadores-eventos": ("Head staff", "➢ GANADORES EVENTOS", "🎖️ Ganadores de Eventos"),
+    "unregister": ("Head staff", "➢ UNREGISTER", "🔐 Unregister"),
+    "reembolso": ("Head staff", "➢ REEMBOLSO", "💸 Reembolso"),
+    "staff-report": ("Head staff", "➢ STAFF REPORT", "🚨 Staff Report"),
+    "error-config": ("Head staff", "➢ ERROR CONFIG", "⚠️ Error de Configuración"),
+    "revives": ("High Staff", "➢ REVIVES", "💊 Revives"),
+    "cambio-nick": ("High Staff", "➢ CAMBIO NICK", "✏️ Cambio de Nick"),
+    "bug-bot-critico": ("Head staff", "➢ BUG BOT CRITICO", "🚨 Bug Crítico de Bot"),
+    "ver-owner": ("Head staff", "➢ VER OWNER", "👁️ Ver Owner del Ticket"),
 }
 STAFF_TEAM        = "Staff team"
 ROL_SOPORTE       = "| Soporte"
@@ -674,8 +674,10 @@ async def crear_ticket(interaction: discord.Interaction,
     }
     if rol_esp:            perms[rol_esp] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
     if usar_st and rol_st: perms[rol_st]  = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-    rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
-    if rol_solo_lectura:   perms[rol_solo_lectura] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
+rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
+# Solo poner permiso de solo lectura si NO es High Staff ni Head staff
+if rol_solo_lectura and not (nombre_rol_esp in ["High Staff", "Head staff"]):
+    perms[rol_solo_lectura] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
     try:
         canal = await guild.create_text_channel(
             name=f"{nombre_canal}-pendiente",
@@ -802,27 +804,6 @@ class TransferView(ui.View):
         select  = interaction.data["values"]
         destino = select[0]
 
-        # ── Ver Owner — solo Head staff, no mueve el ticket ──
-        if destino == "ver-owner":
-            if not any(r.name == "Head staff" for r in interaction.user.roles):
-                return await interaction.response.send_message(
-                    "❌  Solo **Head staff** puede usar esta opción.", ephemeral=True)
-            owner_id = self.owner_id or _get_owner_id_from_topic(interaction.channel)
-            owner    = interaction.guild.get_member(owner_id) if owner_id else None
-            e = discord.Embed(color=COLOR_BLUE)
-            e.set_author(name="NightMc Network  ✦  Info del Ticket",
-                         icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
-            e.title = "👁️  Owner del Ticket"
-            if owner:
-                e.add_field(name="👤  Usuario",   value=f"> {owner.mention}",       inline=True)
-                e.add_field(name="🏷️  Nombre",    value=f"> `{owner.name}`",        inline=True)
-                e.add_field(name="🆔  ID",         value=f"> `{owner.id}`",          inline=True)
-                e.add_field(name="📅  En server",  value=f"> <t:{int(owner.joined_at.timestamp())}:D>", inline=True)
-                e.set_thumbnail(url=owner.display_avatar.url)
-            else:
-                e.description = "> ❌  No se pudo obtener la información del owner."
-            e.set_footer(text=FOOTER, icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
-            return await interaction.response.send_message(embed=e, ephemeral=True)
 
         sub      = TRANSFER_SUBS.get(destino)
         if not sub:
@@ -836,18 +817,21 @@ class TransferView(ui.View):
         await interaction.response.defer()
 
         # ── Crear o buscar la categoría destino con permisos correctos ──
-        cat_t = discord.utils.get(guild.categories, name=cat_nombre)
-        if not cat_t:
-            overwrites_cat = {
-                guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                guild.me:           discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
-            }
-            if rol_nuevo:
-                overwrites_cat[rol_nuevo] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-            try:
-                cat_t = await guild.create_category(cat_nombre, overwrites=overwrites_cat)
-            except discord.Forbidden:
-                cat_t = None
+cat_t = discord.utils.get(guild.categories, name=cat_nombre)
+if not cat_t:
+    nombre_cat = cat_nombre
+    if not nombre_cat.startswith("➢"):
+        nombre_cat = "➢ " + nombre_cat
+    overwrites_cat = {
+        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
+    }
+    if rol_nuevo:
+        overwrites_cat[rol_nuevo] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+    try:
+        cat_t = await guild.create_category(nombre_cat, overwrites=overwrites_cat)
+    except discord.Forbidden:
+        cat_t = None
 
         # ── Quitar permisos de staff anterior en el canal ──
         roles_quitar = [STAFF_TEAM] + [n for n, _ in ROLES_TICKET.values() if n]
@@ -860,6 +844,12 @@ class TransferView(ui.View):
         if rol_nuevo:
             try: await canal.set_permissions(rol_nuevo, read_messages=True, send_messages=True)
             except discord.Forbidden: pass
+              # Si el destino NO es High Staff ni Head staff, agrega permiso de solo lectura a soporte
+if not (nombre_rol in ["High Staff", "Head staff"]):
+    rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
+    if rol_solo_lectura:
+        try: await canal.set_permissions(rol_solo_lectura, read_messages=True, send_messages=False)
+        except discord.Forbidden: pass
 
         # ── Mantener permisos del usuario dueño del ticket ──
         if owner_id:
@@ -1249,6 +1239,29 @@ async def close_prefix(ctx):
 async def transfer_prefix(ctx):
     if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
     await ctx.send("🔄  Usa el **botón Transferir** del ticket o el comando `/transfer`.")
+  @bot.command(name="specifictag_staff")
+async def specifictag_staff(ctx, staff: discord.Member = None):
+    if not es_staff(ctx.author):
+        return await ctx.send(ERR_NO_STAFF)
+    if not staff:
+        return await ctx.send("❌ Uso: `nm!specifictag_staff @staff`")
+    try:
+        await ctx.channel.set_permissions(staff, read_messages=True, send_messages=True)
+        await ctx.send(f"✅ {staff.mention} fue asignado como responsable del ticket.")
+    except discord.Forbidden:
+        await ctx.send("❌ Sin permisos.")
+
+@bot.command(name="specifictag_role")
+async def specifictag_role(ctx, *, role: discord.Role = None):
+    if not es_staff(ctx.author):
+        return await ctx.send(ERR_NO_STAFF)
+    if not role:
+        return await ctx.send("❌ Uso: `nm!specifictag_role @rol`")
+    try:
+        await ctx.channel.set_permissions(role, read_messages=True, send_messages=True)
+        await ctx.send(f"✅ El rol {role.mention} fue asignado como responsable del ticket.")
+    except discord.Forbidden:
+        await ctx.send("❌ Sin permisos.")
 
 @bot.command(name="transcript")
 async def transcript_prefix(ctx):
