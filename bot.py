@@ -778,93 +778,102 @@ class TransferView(ui.View):
         super().__init__(timeout=180)
         self.owner_id = owner_id
         select = ui.Select(
-            placeholder="✦  Selecciona el tipo de gestión...",
+            placeholder="✦ Selecciona el tipo de gestión...",
             options=[
-                discord.SelectOption(label="Ganadores de Eventos",   value="ganadores-eventos",
-                    emoji="🎖️", description="👑 Head staff — Premio no entregado"),
-                discord.SelectOption(label="Unregister",             value="unregister",
-                    emoji="🔐", description="👑 Head staff — Recuperación de cuenta"),
-                discord.SelectOption(label="Reembolso",              value="reembolso",
-                    emoji="💸", description="👑 Head staff — Reembolso tienda"),
-                discord.SelectOption(label="Staff Report",           value="staff-report",
-                    emoji="🚨", description="👑 Head staff — Reportar a un staff"),
+                discord.SelectOption(label="Ganadores de Eventos", value="ganadores-eventos",
+                                    emoji="🎖️", description="👑 Head staff — Premio no entregado"),
+                discord.SelectOption(label="Unregister", value="unregister",
+                                    emoji="🔐", description="👑 Head staff — Recuperación de cuenta"),
+                discord.SelectOption(label="Reembolso", value="reembolso",
+                                    emoji="💸", description="👑 Head staff — Reembolso tienda"),
+                discord.SelectOption(label="Staff Report", value="staff-report",
+                                    emoji="🚨", description="👑 Head staff — Reportar a un staff"),
                 discord.SelectOption(label="Error de Configuración", value="error-config",
-                    emoji="⚠️", description="👑 Head staff — Error de config/permisos"),
-                discord.SelectOption(label="Revives",                value="revives",
-                    emoji="💊", description="🔰 High staff — Recuperar inventario"),
-                discord.SelectOption(label="Cambio de Nick",         value="cambio-nick",
-                    emoji="✏️", description="🔰 High staff — Cambiar nick vinculado"),
-                discord.SelectOption(label="Bug Critico de Bot",     value="bug-bot-critico",
-                    emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
-                discord.SelectOption(label="Ver Owner del Ticket",   value="ver-owner",
-                    emoji="🔎", description="👑 Head staff — Ver quien abrio este ticket"),
+                                    emoji="⚠️", description="👑 Head staff — Error de config/permisos"),
+                discord.SelectOption(label="Revives", value="revives",
+                                    emoji="💊", description="🔰 High staff — Recuperar inventario"),
+                discord.SelectOption(label="Cambio de Nick", value="cambio-nick",
+                                    emoji="✏️", description="🔰 High staff — Cambiar nick vinculado"),
+                discord.SelectOption(label="Bug Critico de Bot", value="bug-bot-critico",
+                                    emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
+                discord.SelectOption(label="Ver Owner del Ticket", value="ver-owner",
+                                    emoji="🔎", description="👑 Head staff — Ver quien abrio este ticket"),
             ]
         )
         select.callback = self.select_callback
         self.add_item(select)
 
     async def select_callback(self, interaction: discord.Interaction):
-        select  = interaction.data["values"]
+        select = interaction.data["values"]
         destino = select[0]
 
-
-        sub      = TRANSFER_SUBS.get(destino)
+        sub = TRANSFER_SUBS.get(destino)
         if not sub:
-            return await interaction.response.send_message("❌  Subcategoría no encontrada.", ephemeral=True)
+            return await interaction.response.send_message("❌ Subcategoría no encontrada.", ephemeral=True)
         nombre_rol, cat_nombre, label = sub
-        rol_nuevo  = discord.utils.get(interaction.guild.roles, name=nombre_rol)
-        canal      = interaction.channel
-        guild      = interaction.guild
-        owner_id   = self.owner_id or _get_owner_id_from_topic(canal)
+        rol_nuevo = discord.utils.get(interaction.guild.roles, name=nombre_rol)
+        canal = interaction.channel
+        guild = interaction.guild
+        owner_id = self.owner_id or _get_owner_id_from_topic(canal)
 
         await interaction.response.defer()
 
         # ── Crear o buscar la categoría destino con permisos correctos ──
-cat_t = discord.utils.get(guild.categories, name=cat_nombre)
-if not cat_t:
-    nombre_cat = cat_nombre
-    if not nombre_cat.startswith("➢"):
-        nombre_cat = "➢ " + nombre_cat
-    overwrites_cat = {
-        guild.default_role: discord.PermissionOverwrite(read_messages=False),
-        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
-    }
-    if rol_nuevo:
-        overwrites_cat[rol_nuevo] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-    try:
-        cat_t = await guild.create_category(nombre_cat, overwrites=overwrites_cat)
-    except discord.Forbidden:
-        cat_t = None
+        cat_t = discord.utils.get(guild.categories, name=cat_nombre)
+        if not cat_t:
+            nombre_cat = cat_nombre
+            if not nombre_cat.startswith("➢"):
+                nombre_cat = "➢ " + nombre_cat
+            overwrites_cat = {
+                guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
+            }
+            if rol_nuevo:
+                overwrites_cat[rol_nuevo] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            try:
+                cat_t = await guild.create_category(nombre_cat, overwrites=overwrites_cat)
+            except discord.Forbidden:
+                cat_t = None
 
         # ── Quitar permisos de staff anterior en el canal ──
         roles_quitar = [STAFF_TEAM] + [n for n, _ in ROLES_TICKET.values() if n]
         for target in list(canal.overwrites):
             if isinstance(target, discord.Role) and target.name in roles_quitar:
-                try: await canal.set_permissions(target, overwrite=None)
-                except discord.Forbidden: pass
+                try:
+                    await canal.set_permissions(target, overwrite=None)
+                except discord.Forbidden:
+                    pass
 
         # ── Dar permisos al nuevo rol en el canal ──
         if rol_nuevo:
-            try: await canal.set_permissions(rol_nuevo, read_messages=True, send_messages=True)
-            except discord.Forbidden: pass
-              # Si el destino NO es High Staff ni Head staff, agrega permiso de solo lectura a soporte
-if not (nombre_rol in ["High Staff", "Head staff"]):
-    rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
-    if rol_solo_lectura:
-        try: await canal.set_permissions(rol_solo_lectura, read_messages=True, send_messages=False)
-        except discord.Forbidden: pass
+            try:
+                await canal.set_permissions(rol_nuevo, read_messages=True, send_messages=True)
+            except discord.Forbidden:
+                pass
+        # Si el destino NO es High Staff ni Head staff, agrega permiso de solo lectura a soporte
+        if not (nombre_rol in ["High Staff", "Head staff"]):
+            rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
+            if rol_solo_lectura:
+                try:
+                    await canal.set_permissions(rol_solo_lectura, read_messages=True, send_messages=False)
+                except discord.Forbidden:
+                    pass
 
         # ── Mantener permisos del usuario dueño del ticket ──
         if owner_id:
             owner = guild.get_member(owner_id)
             if owner:
-                try: await canal.set_permissions(owner, read_messages=True, send_messages=True, attach_files=True)
-                except discord.Forbidden: pass
+                try:
+                    await canal.set_permissions(owner, read_messages=True, send_messages=True, attach_files=True)
+                except discord.Forbidden:
+                    pass
 
         # ── Mover el canal a la nueva categoría ──
         if cat_t and canal.category != cat_t:
-            try: await canal.edit(category=cat_t, sync_permissions=False)
-            except (discord.Forbidden, discord.HTTPException): pass
+            try:
+                await canal.edit(category=cat_t, sync_permissions=False)
+            except (discord.Forbidden, discord.HTTPException):
+                pass
 
         # ── Renombrar canal ──
         asyncio.create_task(rename_robusto(canal, destino + "-pendiente"))
@@ -872,12 +881,12 @@ if not (nombre_rol in ["High Staff", "Head staff"]):
         await resetear_claim_en_canal(canal, destino, owner_id)
         mention = rol_nuevo.mention if rol_nuevo else f"@{nombre_rol}"
         await interaction.followup.send(embed=embed_transfer_msg(label, guild))
-        await canal.send(f"{mention}  ✦  Se requiere atención en este ticket — **{label}**.")
-        log_e = discord.Embed(title="🔄  Ticket Transferido", color=COLOR_WARN, timestamp=datetime.datetime.now())
-        log_e.add_field(name="Canal",    value=canal.mention,            inline=True)
-        log_e.add_field(name="Destino",  value=label,                    inline=True)
-        log_e.add_field(name="Rol",      value=nombre_rol,               inline=True)
-        log_e.add_field(name="Staff",    value=interaction.user.mention, inline=True)
+        await canal.send(f"{mention} ✦ Se requiere atención en este ticket — **{label}**.")
+        log_e = discord.Embed(title="🔄 Ticket Transferido", color=COLOR_WARN, timestamp=datetime.datetime.now())
+        log_e.add_field(name="Canal", value=canal.mention, inline=True)
+        log_e.add_field(name="Destino", value=label, inline=True)
+        log_e.add_field(name="Rol", value=nombre_rol, inline=True)
+        log_e.add_field(name="Staff", value=interaction.user.mention, inline=True)
         log_e.set_footer(text=FOOTER)
         await enviar_log(guild, log_e)
 
