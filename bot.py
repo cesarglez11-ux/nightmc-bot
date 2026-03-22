@@ -557,27 +557,26 @@ async def hacer_transcript(canal: discord.TextChannel) -> io.BytesIO:
     return io.BytesIO("".join(lineas).encode("utf-8"))
 
 async def rename_robusto(canal: discord.TextChannel, nuevo_nombre: str):
-    import time
+    """Renombra respetando el rate-limit de Discord (2 por 10 min).
+    Si Discord devuelve 429 espera retry_after y reintenta sin perder el rename."""
     nuevo_nombre = nuevo_nombre[:50].lower().replace(" ", "-")
     if canal.name == nuevo_nombre:
         return True
-    try:
-        await canal.edit(name=nuevo_nombre)
-        bot._last_rename[canal.id] = time.monotonic()
-        return True
-    except discord.HTTPException as e:
-        if e.status == 429:
-            wait = float(getattr(e, "retry_after", 600))
-            await asyncio.sleep(wait + 2)
-            try:
-                await canal.edit(name=nuevo_nombre)
-                bot._last_rename[canal.id] = time.monotonic()
-                return True
-            except Exception:
-                return False
-        return False
-    except Exception:
-        return False
+    while True:
+        try:
+            await canal.edit(name=nuevo_nombre)
+            return True
+        except discord.HTTPException as e:
+            if e.status == 429:
+                wait = float(getattr(e, "retry_after", 600))
+                print(f"[rename] Rate-limit #{canal.name} — reintentando en {wait:.1f}s")
+                await asyncio.sleep(wait + 1)
+                continue
+            print(f"[rename] Error {e.status} en #{canal.name}: {e}")
+            return False
+        except Exception as e:
+            print(f"[rename] Error inesperado en #{canal.name}: {e}")
+            return False
 
 async def calcular_base_nombre(canal: discord.TextChannel) -> str:
     base = canal.name
@@ -1029,10 +1028,17 @@ async def close_slash(interaction: discord.Interaction):
 async def claim_slash(interaction: discord.Interaction):
     if not es_staff(interaction.user):
         return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     owner_id = _get_owner_id_from_topic(interaction.channel)
     if interaction.user.id == owner_id and not any(r.name == "Head staff" for r in interaction.user.roles):
         return await interaction.followup.send(ERR_PROPIO, ephemeral=True)
+    canal_id = interaction.channel.id
+    claimed = bot._claimed_channels.get(canal_id)
+    if claimed and claimed != interaction.user.id:
+        return await interaction.followup.send(ERR_YA_RECLAMADO, ephemeral=True)
+    if claimed == interaction.user.id:
+        return await interaction.followup.send(ERR_YA_TUYO, ephemeral=True)
+    bot._claimed_channels[canal_id] = interaction.user.id
     base = await calcular_base_nombre(interaction.channel)
     asyncio.create_task(rename_robusto(interaction.channel, f"{base}-{interaction.user.name[:12].lower()}"))
     await interaction.followup.send(embed=embed_claimed(interaction.user, interaction.guild))
@@ -1237,6 +1243,13 @@ async def claim_prefix(ctx):
     owner_id = _get_owner_id_from_topic(ctx.channel)
     if ctx.author.id == owner_id and not any(r.name == "Head staff" for r in ctx.author.roles):
         return await ctx.send(ERR_PROPIO)
+    canal_id = ctx.channel.id
+    claimed = bot._claimed_channels.get(canal_id)
+    if claimed and claimed != ctx.author.id:
+        return await ctx.send(ERR_YA_RECLAMADO)
+    if claimed == ctx.author.id:
+        return await ctx.send(ERR_YA_TUYO)
+    bot._claimed_channels[canal_id] = ctx.author.id
     base = await calcular_base_nombre(ctx.channel)
     asyncio.create_task(rename_robusto(ctx.channel, f"{base}-{ctx.author.name[:12].lower()}"))
     await ctx.send(embed=embed_claimed(ctx.author, ctx.guild))
