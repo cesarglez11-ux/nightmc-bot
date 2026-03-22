@@ -6,7 +6,7 @@
   ██║╚██╗██║██║██║   ██║██╔══██║   ██║   ██║╚██╔╝██║██║
   ██║ ╚████║██║╚██████╔╝██║  ██║   ██║   ██║ ╚═╝ ██║╚██████╗
   ╚═╝  ╚═══╝╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝ ╚═════╝
-                  Bot de Tickets — NightMc Network v2.1
+                  Bot de Tickets — NightMc Network v2.2
   Token  →  Railway › Variables › DISCORD_TOKEN
   Deploy →  Railway › Deployments › Redeploy
 ╚══════════════════════════════════════════════════════════════════╝
@@ -21,7 +21,7 @@ import json
 import os
 
 TOKEN    = os.getenv("DISCORD_TOKEN")
-GUILD_ID = int(os.getenv("GUILD_ID", "0"))  # Pon tu Guild ID en Railway → Variables
+GUILD_ID = int(os.getenv("GUILD_ID", "0"))
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   ⚙️  CONFIGURACIÓN — NIVELES & SUGERENCIAS
@@ -29,11 +29,9 @@ GUILD_ID = int(os.getenv("GUILD_ID", "0"))  # Pon tu Guild ID en Railway → Var
 NIVELES_FILE      = "niveles_data.json"
 CANAL_SUGERENCIAS = "💡│sugerencias"
 
-# XP por mensaje — sube con el nivel (más nivel = más difícil)
 XP_MIN, XP_MAX    = 15, 25
-XP_COOLDOWN_SEG   = 60   # segundos entre mensajes que dan XP
+XP_COOLDOWN_SEG   = 60
 
-# Canales donde se gana XP (nombres exactos del servidor)
 CANALES_XP = {
     "💬│general",
     "💬│general-vip",
@@ -41,7 +39,6 @@ CANALES_XP = {
     "🤖│comandos",
 }
 
-# Premios por nivel — DM al usuario
 PREMIOS_NIVEL = {
     25:  ("Lunar", "1 día"),
     50:  ("Dark",  "1 día"),
@@ -50,9 +47,6 @@ PREMIOS_NIVEL = {
 }
 
 def _xp_para_nivel(nivel: int) -> int:
-    """XP total acumulado para alcanzar `nivel`.
-    Escala cuadráticamente — niveles altos son mucho más difíciles.
-    Nivel 0=0, 1=100, 5=750, 10=2100, 25=10100, 50=35100, 100=130100"""
     if nivel <= 0:
         return 0
     return 100 * nivel + 20 * (nivel ** 2)
@@ -104,14 +98,14 @@ ROLES_TICKET = {
 MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
     "ganadores-eventos": ("Head staff", "➢ GANADORES EVENTOS", "🎖️ Ganadores de Eventos"),
-    "unregister": ("Head staff", "➢ UNREGISTER", "🔐 Unregister"),
-    "reembolso": ("Head staff", "➢ REEMBOLSO", "💸 Reembolso"),
-    "staff-report": ("Head staff", "➢ STAFF REPORT", "🚨 Staff Report"),
-    "error-config": ("Head staff", "➢ ERROR CONFIG", "⚠️ Error de Configuración"),
-    "revives": ("High Staff", "➢ REVIVES", "💊 Revives"),
-    "cambio-nick": ("High Staff", "➢ CAMBIO NICK", "✏️ Cambio de Nick"),
-    "bug-bot-critico": ("Head staff", "➢ BUG BOT CRITICO", "🚨 Bug Crítico de Bot"),
-    "ver-owner": ("Head staff", "➢ VER OWNER", "👁️ Ver Owner"),
+    "unregister":        ("Head staff", "➢ UNREGISTER",        "🔐 Unregister"),
+    "reembolso":         ("Head staff", "➢ REEMBOLSO",         "💸 Reembolso"),
+    "staff-report":      ("Head staff", "➢ STAFF REPORT",      "🚨 Staff Report"),
+    "error-config":      ("Head staff", "➢ ERROR CONFIG",      "⚠️ Error de Configuración"),
+    "revives":           ("High Staff", "➢ REVIVES",           "💊 Revives"),
+    "cambio-nick":       ("High Staff", "➢ CAMBIO NICK",       "✏️ Cambio de Nick"),
+    "bug-bot-critico":   ("Head staff", "➢ BUG BOT CRITICO",   "🚨 Bug Crítico de Bot"),
+    "ver-owner":         ("Head staff", "➢ VER OWNER",         "👁️ Ver Owner"),
 }
 STAFF_TEAM        = "Staff team"
 ROL_SOPORTE       = "| Soporte"
@@ -462,7 +456,6 @@ class NightBot(commands.Bot):
         self.add_view(TicketLauncher())
         self.add_view(TicketControl())
         self.add_view(GiveawayView())
-        # Auto-sync al guild configurado al arrancar
         if GUILD_ID:
             guild_obj = discord.Object(id=GUILD_ID)
             self.tree.copy_global_to(guild=guild_obj)
@@ -676,7 +669,6 @@ async def crear_ticket(interaction: discord.Interaction, tipo: str, campos: dict
     if usar_st and rol_st:
         perms[rol_st] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
     rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
-    # Solo poner permiso de solo lectura si NO es High Staff ni Head staff
     if rol_solo_lectura and not (nombre_rol_esp in ["High Staff", "Head staff"]):
         perms[rol_solo_lectura] = discord.PermissionOverwrite(read_messages=True, send_messages=False)
     try:
@@ -771,7 +763,93 @@ class TicketControl(ui.View):
         await cerrar_ticket(interaction.channel, interaction.guild, interaction.user, owner_id)
 
 # ╔═══════════════════════════════════════════════════════════════╗
-#   🔄  MENÚ DE TRANSFERENCIA
+#   🔄  LÓGICA COMPARTIDA DE TRANSFERENCIA
+# ╚═══════════════════════════════════════════════════════════════╝
+async def ejecutar_transferencia(interaction: discord.Interaction, destino: str, owner_id: int):
+    """Lógica central de transferencia — usada por el botón y el slash /transfer."""
+    sub = TRANSFER_SUBS.get(destino)
+    if not sub:
+        await interaction.followup.send("❌ Subcategoría no encontrada.", ephemeral=True)
+        return
+
+    nombre_rol, cat_nombre, label = sub
+    rol_nuevo = discord.utils.get(interaction.guild.roles, name=nombre_rol)
+    canal = interaction.channel
+    guild = interaction.guild
+
+    # ── Crear o buscar la categoría destino ──────────────────────
+    cat_t = discord.utils.get(guild.categories, name=cat_nombre)
+    if not cat_t:
+        nombre_cat = cat_nombre if cat_nombre.startswith("➢") else "➢ " + cat_nombre
+        overwrites_cat = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
+        }
+        if rol_nuevo:
+            overwrites_cat[rol_nuevo] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        try:
+            cat_t = await guild.create_category(nombre_cat, overwrites=overwrites_cat)
+        except discord.Forbidden:
+            cat_t = None
+
+    # ── Quitar permisos de staff anterior ─────────────────────────
+    roles_quitar = [STAFF_TEAM] + [n for n, _ in ROLES_TICKET.values() if n]
+    for target in list(canal.overwrites):
+        if isinstance(target, discord.Role) and target.name in roles_quitar:
+            try:
+                await canal.set_permissions(target, overwrite=None)
+            except discord.Forbidden:
+                pass
+
+    # ── Dar permisos al nuevo rol ─────────────────────────────────
+    if rol_nuevo:
+        try:
+            await canal.set_permissions(rol_nuevo, read_messages=True, send_messages=True)
+        except discord.Forbidden:
+            pass
+
+    if not (nombre_rol in ["High Staff", "Head staff"]):
+        rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
+        if rol_solo_lectura:
+            try:
+                await canal.set_permissions(rol_solo_lectura, read_messages=True, send_messages=False)
+            except discord.Forbidden:
+                pass
+
+    # ── Mantener permisos del dueño del ticket ────────────────────
+    if owner_id:
+        owner = guild.get_member(owner_id)
+        if owner:
+            try:
+                await canal.set_permissions(owner, read_messages=True, send_messages=True, attach_files=True)
+            except discord.Forbidden:
+                pass
+
+    # ── Mover canal a nueva categoría ────────────────────────────
+    if cat_t and canal.category != cat_t:
+        try:
+            await canal.edit(category=cat_t, sync_permissions=False)
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
+    # ── Renombrar canal ───────────────────────────────────────────
+    asyncio.create_task(rename_robusto(canal, destino + "-pendiente"))
+
+    await resetear_claim_en_canal(canal, destino, owner_id)
+    mention = rol_nuevo.mention if rol_nuevo else f"@{nombre_rol}"
+    await interaction.followup.send(embed=embed_transfer_msg(label, guild))
+    await canal.send(f"{mention} ✦ Se requiere atención en este ticket — **{label}**.")
+
+    log_e = discord.Embed(title="🔄 Ticket Transferido", color=COLOR_WARN, timestamp=datetime.datetime.now())
+    log_e.add_field(name="Canal",  value=canal.mention,           inline=True)
+    log_e.add_field(name="Destino", value=label,                  inline=True)
+    log_e.add_field(name="Rol",    value=nombre_rol,              inline=True)
+    log_e.add_field(name="Staff",  value=interaction.user.mention, inline=True)
+    log_e.set_footer(text=FOOTER)
+    await enviar_log(guild, log_e)
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   🔄  MENÚ DE TRANSFERENCIA (Botón del ticket)
 # ╚═══════════════════════════════════════════════════════════════╝
 class TransferView(ui.View):
     def __init__(self, owner_id: int = 0):
@@ -804,91 +882,10 @@ class TransferView(ui.View):
         self.add_item(select)
 
     async def select_callback(self, interaction: discord.Interaction):
-        select = interaction.data["values"]
-        destino = select[0]
-
-        sub = TRANSFER_SUBS.get(destino)
-        if not sub:
-            return await interaction.response.send_message("❌ Subcategoría no encontrada.", ephemeral=True)
-        nombre_rol, cat_nombre, label = sub
-        rol_nuevo = discord.utils.get(interaction.guild.roles, name=nombre_rol)
-        canal = interaction.channel
-        guild = interaction.guild
-        owner_id = self.owner_id or _get_owner_id_from_topic(canal)
-
+        destino  = interaction.data["values"][0]
+        owner_id = self.owner_id or _get_owner_id_from_topic(interaction.channel)
         await interaction.response.defer()
-
-        # ── Crear o buscar la categoría destino con permisos correctos ──
-        cat_t = discord.utils.get(guild.categories, name=cat_nombre)
-        if not cat_t:
-            nombre_cat = cat_nombre
-            if not nombre_cat.startswith("➢"):
-                nombre_cat = "➢ " + nombre_cat
-            overwrites_cat = {
-                guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True),
-            }
-            if rol_nuevo:
-                overwrites_cat[rol_nuevo] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-            try:
-                cat_t = await guild.create_category(nombre_cat, overwrites=overwrites_cat)
-            except discord.Forbidden:
-                cat_t = None
-
-        # ── Quitar permisos de staff anterior en el canal ──
-        roles_quitar = [STAFF_TEAM] + [n for n, _ in ROLES_TICKET.values() if n]
-        for target in list(canal.overwrites):
-            if isinstance(target, discord.Role) and target.name in roles_quitar:
-                try:
-                    await canal.set_permissions(target, overwrite=None)
-                except discord.Forbidden:
-                    pass
-
-        # ── Dar permisos al nuevo rol en el canal ──
-        if rol_nuevo:
-            try:
-                await canal.set_permissions(rol_nuevo, read_messages=True, send_messages=True)
-            except discord.Forbidden:
-                pass
-        # Si el destino NO es High Staff ni Head staff, agrega permiso de solo lectura a soporte
-        if not (nombre_rol in ["High Staff", "Head staff"]):
-            rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
-            if rol_solo_lectura:
-                try:
-                    await canal.set_permissions(rol_solo_lectura, read_messages=True, send_messages=False)
-                except discord.Forbidden:
-                    pass
-
-        # ── Mantener permisos del usuario dueño del ticket ──
-        if owner_id:
-            owner = guild.get_member(owner_id)
-            if owner:
-                try:
-                    await canal.set_permissions(owner, read_messages=True, send_messages=True, attach_files=True)
-                except discord.Forbidden:
-                    pass
-
-        # ── Mover el canal a la nueva categoría ──
-        if cat_t and canal.category != cat_t:
-            try:
-                await canal.edit(category=cat_t, sync_permissions=False)
-            except (discord.Forbidden, discord.HTTPException):
-                pass
-
-        # ── Renombrar canal ──
-        asyncio.create_task(rename_robusto(canal, destino + "-pendiente"))
-
-        await resetear_claim_en_canal(canal, destino, owner_id)
-        mention = rol_nuevo.mention if rol_nuevo else f"@{nombre_rol}"
-        await interaction.followup.send(embed=embed_transfer_msg(label, guild))
-        await canal.send(f"{mention} ✦ Se requiere atención en este ticket — **{label}**.")
-        log_e = discord.Embed(title="🔄 Ticket Transferido", color=COLOR_WARN, timestamp=datetime.datetime.now())
-        log_e.add_field(name="Canal", value=canal.mention, inline=True)
-        log_e.add_field(name="Destino", value=label, inline=True)
-        log_e.add_field(name="Rol", value=nombre_rol, inline=True)
-        log_e.add_field(name="Staff", value=interaction.user.mention, inline=True)
-        log_e.set_footer(text=FOOTER)
-        await enviar_log(guild, log_e)
+        await ejecutar_transferencia(interaction, destino, owner_id)
 
 # ╔═══════════════════════════════════════════════════════════════╗
 #   📝  MODALES
@@ -963,9 +960,6 @@ class RewardModal(ui.Modal, title="NightMc  ·  Soporte de Recompensas"):
             {"Nick": self.nick.value, "Recompensa": self.reward.value,
              "Premio": self.premio.value, "Descripcion": self.desc.value}, "reward")
 
-# ╔═══════════════════════════════════════════════════════════════╗
-#   🎡  MENÚ PRINCIPAL — Dropdown
-# ╚═══════════════════════════════════════════════════════════════╝
 class BotsModal(ui.Modal, title="NightMc  ·  Soporte de Bots"):
     bot_nombre   = ui.TextInput(label="Bot afectado",   placeholder="¿Qué bot está fallando?")
     nick         = ui.TextInput(label="Tu nick",         placeholder="Tu nick en Minecraft o Discord")
@@ -979,6 +973,9 @@ class BotsModal(ui.Modal, title="NightMc  ·  Soporte de Bots"):
              "Problema": self.problema.value,
              "Reproducible": self.reproducible.value or "No especificado"}, "bots")
 
+# ╔═══════════════════════════════════════════════════════════════╗
+#   🎡  MENÚ PRINCIPAL — Dropdown
+# ╚═══════════════════════════════════════════════════════════════╝
 class TicketLauncher(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -1019,7 +1016,6 @@ class TicketLauncher(ui.View):
 # ╔═══════════════════════════════════════════════════════════════╗
 #   ⚡  SLASH COMMANDS
 # ╚═══════════════════════════════════════════════════════════════╝
-
 @bot.tree.command(name="close", description="Cierra este ticket")
 async def close_slash(interaction: discord.Interaction):
     if not es_staff(interaction.user):
@@ -1057,14 +1053,35 @@ async def transcript_slash(interaction: discord.Interaction):
     log_e.set_footer(text=FOOTER)
     lc = await get_o_crear_logs(interaction.guild)
     if lc:
-        try: await lc.send(embed=log_e, file=discord.File(arch2, filename=nombre))
-        except Exception: pass
+        try:
+            await lc.send(embed=log_e, file=discord.File(arch2, filename=nombre))
+        except Exception:
+            pass
 
-
-
-
-
-
+# ╔═══════════════════════════════════════════════════════════════╗
+#   🔄  /transfer — SLASH COMMAND (igual que el botón)
+# ╚═══════════════════════════════════════════════════════════════╝
+@bot.tree.command(name="transfer", description="Transfiere este ticket a otro equipo del staff")
+@discord.app_commands.describe(destino="Tipo de gestión a la que transferir el ticket")
+@discord.app_commands.choices(destino=[
+    discord.app_commands.Choice(name="🎖️  Ganadores de Eventos  (Head staff)",  value="ganadores-eventos"),
+    discord.app_commands.Choice(name="🔐  Unregister            (Head staff)",  value="unregister"),
+    discord.app_commands.Choice(name="💸  Reembolso             (Head staff)",  value="reembolso"),
+    discord.app_commands.Choice(name="🚨  Staff Report          (Head staff)",  value="staff-report"),
+    discord.app_commands.Choice(name="⚠️  Error de Config       (Head staff)",  value="error-config"),
+    discord.app_commands.Choice(name="💊  Revives               (High Staff)",  value="revives"),
+    discord.app_commands.Choice(name="✏️  Cambio de Nick        (High Staff)",  value="cambio-nick"),
+    discord.app_commands.Choice(name="🚨  Bug Crítico de Bot    (Head staff)",  value="bug-bot-critico"),
+    discord.app_commands.Choice(name="👁️  Ver Owner             (Head staff)",  value="ver-owner"),
+])
+async def transfer_slash(interaction: discord.Interaction, destino: str):
+    if not es_staff(interaction.user):
+        if any(r.name == ROL_SOPORTE for r in interaction.user.roles):
+            return await interaction.response.send_message(MSG_SIN_PERMISOS, ephemeral=True)
+        return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
+    owner_id = _get_owner_id_from_topic(interaction.channel)
+    await interaction.response.defer()
+    await ejecutar_transferencia(interaction, destino, owner_id)
 
 def _get_rango(member: discord.Member) -> str:
     roles = [r.name for r in member.roles]
@@ -1086,7 +1103,6 @@ def _build_help(guild, member: discord.Member = None):
     e.title = "📋  Guía de Comandos — NightMc Network"
     e.set_image(url=BANNER_URL)
 
-    # ── | Soporte — solo lectura ──────────────────────────────────
     if rango == "soporte":
         e.description = (
             f"Hola {member.mention}, puedes **ver** los tickets pero no interactuar con ellos.\n"
@@ -1096,7 +1112,6 @@ def _build_help(guild, member: discord.Member = None):
         e.set_footer(text=FOOTER, icon_url=guild.icon.url if guild.icon else None)
         return e
 
-    # ── Descripción según rango ───────────────────────────────────
     if rango in ("low", "medium", "staff", "high", "head"):
         leyenda = "🟢 Todos  ·  🔵 Staff  ·  🟠 High  ·  🔴 Head"
         if es_admin:
@@ -1114,7 +1129,6 @@ def _build_help(guild, member: discord.Member = None):
             f"{SEP}"
         )
 
-    # ── General — todos ───────────────────────────────────────────
     e.add_field(name="🌐  General  🟢", value=(
         "> `/ip` `nm!ip` — IPs y modalidades del servidor\n"
         "> `/rank` — Ver tu nivel y XP actual\n"
@@ -1126,29 +1140,26 @@ def _build_help(guild, member: discord.Member = None):
         "> `/help` `nm!help` — Este menú"
     ), inline=False)
 
-    # ── Tickets — staff base ──────────────────────────────────────
     if rango in ("low", "medium", "staff", "high", "head"):
         e.add_field(name="🎫  Tickets  🔵", value=(
             "> `/claim` `nm!claim` — Reclamar el ticket\n"
             "> `/close` `nm!close` — Cerrar y eliminar el ticket\n"
+            "> `/transfer <destino>` — Transferir ticket *(o botón 🔄)*\n"
             "> `/transcript` — Generar transcript del historial\n"
             "> `nm!add @usuario` — Añadir usuario al ticket\n"
             "> `nm!remove @usuario` — Eliminar usuario del ticket\n"
             "> `nm!rename <nombre>` — Renombrar el canal\n"
             "> `nm!slowmode [seg]` — Modo lento *(0 = desactivar)*\n"
-            "> `nm!transfer` — Derivar *(o botón 🔄 del ticket)*\n"
             "> `nm!specifictag_staff @staff` — Asignar a staff específico\n"
             "> `nm!specifictag_role @rol` — Asignar a rol específico"
         ), inline=False)
 
-    # ── High Staff ───────────────────────────────────────────────
     if rango in ("high", "head"):
         e.add_field(name="🔎  Registros  🟠", value=(
             "> Acceso al canal **#logs-tickets**\n"
             "> Se registran apertura, cierre y transcripts de tickets"
         ), inline=False)
 
-    # ── Head staff ───────────────────────────────────────────────
     if rango == "head":
         e.add_field(name="🎉  Sorteos  🔴", value=(
             "> `/giveaway` — Crear sorteo oficial\n"
@@ -1156,7 +1167,6 @@ def _build_help(guild, member: discord.Member = None):
             "> `/giveaway_reroll <id>` — Elegir nuevo ganador"
         ), inline=False)
 
-    # ── Administrador (permiso real de Discord) ───────────────────
     if es_admin:
         e.add_field(name="🔐  Administración  🔑", value=(
             "> `nm!setup` — Publicar panel de tickets\n"
@@ -1250,7 +1260,8 @@ async def close_prefix(ctx):
 @bot.command(name="transfer")
 async def transfer_prefix(ctx):
     if not es_staff(ctx.author): return await ctx.send(ERR_NO_STAFF)
-    await ctx.send("🔄  Usa el **botón Transferir** del ticket.")
+    await ctx.send("🔄  Usa el **botón Transferir** del ticket o el slash `/transfer`.")
+
 @bot.command(name="specifictag_staff")
 async def specifictag_staff(ctx, staff: discord.Member = None):
     if not es_staff(ctx.author):
@@ -1438,7 +1449,7 @@ async def rules_slash(interaction: discord.Interaction, tipo: str = "dc"):
 # ╚═══════════════════════════════════════════════════════════════╝
 import random as _random
 
-_xp_cooldowns: dict[int, float] = {}  # uid → timestamp último mensaje con XP
+_xp_cooldowns: dict[int, float] = {}
 
 def _load_niveles() -> dict:
     if os.path.exists(NIVELES_FILE):
@@ -1469,26 +1480,22 @@ async def on_message(message: discord.Message):
     uid   = message.author.id
     ahora = time.time()
 
-    # Solo dar XP en canales permitidos
     if message.channel.name not in CANALES_XP:
         await bot.process_commands(message)
         return
 
-    # Cooldown de XP
     if ahora - _xp_cooldowns.get(uid, 0) >= XP_COOLDOWN_SEG:
         _xp_cooldowns[uid] = ahora
         data        = _load_niveles()
         u           = _get_user_xp(data, uid)
         nivel_antes = u["nivel"]
 
-        # XP ganado: base + bonus por nivel (más nivel = más XP pero también más se necesita)
         xp_add = _random.randint(XP_MIN, XP_MAX)
         u["xp"]      += xp_add
         u["mensajes"] = u.get("mensajes", 0) + 1
         u["nivel"]    = _nivel_desde_xp(u["xp"])
         _save_niveles(data)
 
-        # ── Subió de nivel → mensaje en canal ──
         if u["nivel"] > nivel_antes:
             nivel_nuevo = u["nivel"]
             xp_sig      = _xp_para_nivel(nivel_nuevo + 1)
@@ -1515,7 +1522,6 @@ async def on_message(message: discord.Message):
             except Exception:
                 pass
 
-            # ── Premio por nivel especial → DM ──
             if nivel_nuevo in PREMIOS_NIVEL:
                 rango, duracion = PREMIOS_NIVEL[nivel_nuevo]
                 dm = discord.Embed(color=0xf1c40f)
@@ -1549,7 +1555,6 @@ async def on_message(message: discord.Message):
                 )
                 try:
                     await message.author.send(embed=dm)
-                    # Aviso en el canal también
                     aviso = discord.Embed(color=0xf1c40f)
                     aviso.description = (
                         f"🎁  {message.author.mention} alcanzó el **nivel {nivel_nuevo}**\n"
@@ -1557,7 +1562,6 @@ async def on_message(message: discord.Message):
                     )
                     await message.channel.send(embed=aviso)
                 except discord.Forbidden:
-                    # DMs cerrados — avisa en el canal
                     aviso = discord.Embed(color=0xf39c12)
                     aviso.description = (
                         f"🎁  {message.author.mention} ganó el rango **{rango}** por **{duracion}**\n"
@@ -1576,36 +1580,30 @@ async def rank_slash(interaction: discord.Interaction, usuario: discord.Member =
     nivel  = u["nivel"]
     xp     = u["xp"]
 
-    # XP dentro del nivel actual (siempre positivo ahora)
-    xp_base_nivel = _xp_para_nivel(nivel)       # XP necesario para llegar al nivel actual
-    xp_base_sig   = _xp_para_nivel(nivel + 1)   # XP necesario para llegar al siguiente
-    xp_en_nivel   = xp - xp_base_nivel          # XP ganado dentro del nivel actual
-    xp_necesario  = xp_base_sig - xp_base_nivel # XP total requerido para subir
+    xp_base_nivel = _xp_para_nivel(nivel)
+    xp_base_sig   = _xp_para_nivel(nivel + 1)
+    xp_en_nivel   = xp - xp_base_nivel
+    xp_necesario  = xp_base_sig - xp_base_nivel
 
-    # Barra de progreso (12 bloques)
     pct      = max(0, min(xp_en_nivel / xp_necesario, 1.0)) if xp_necesario > 0 else 1.0
     filled   = int(pct * 12)
     barra    = "🟩" * filled + "⬛" * (12 - filled)
     pct_txt  = f"{int(pct * 100)}%"
 
-    # Posición en ranking
     ranking = sorted(data.items(), key=lambda x: x[1].get("xp", 0), reverse=True)
     pos     = next((i+1 for i, (k, _) in enumerate(ranking) if k == str(target.id)), "?")
 
-    # Premio ya obtenido (más alto alcanzado)
     ultimo_premio = None
     for lvl_req, (rango, dur) in sorted(PREMIOS_NIVEL.items()):
         if nivel >= lvl_req:
             ultimo_premio = (lvl_req, rango, dur)
 
-    # Próximo premio
     prox_premio = None
     for lvl_req, (rango, dur) in sorted(PREMIOS_NIVEL.items()):
         if nivel < lvl_req:
             prox_premio = (lvl_req, rango, dur)
             break
 
-    # Color según nivel
     colores = [0x95a5a6, 0x2ecc71, 0x3498db, 0x9b59b6, 0xf39c12, 0xe74c3c]
     color   = colores[min(nivel // 10, len(colores) - 1)]
 
@@ -1666,7 +1664,6 @@ async def leaderboard_slash(interaction: discord.Interaction):
             )
         e.description = SEP + "\n" + "\n".join(lineas)
 
-    # Posición del que pregunta
     pos = next((i+1 for i, (k, _) in enumerate(
         sorted(data.items(), key=lambda x: x[1].get("xp", 0), reverse=True)
     ) if k == str(interaction.user.id)), None)
@@ -1746,7 +1743,7 @@ async def on_command_error(ctx, error):
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎉  GIVEAWAYS
 # ╚═══════════════════════════════════════════════════════════════╝
-giveaways_activos: dict[int, dict] = {}  # message_id → datos
+giveaways_activos: dict[int, dict] = {}
 
 class GiveawayView(ui.View):
     def __init__(self):
@@ -1769,7 +1766,6 @@ class GiveawayView(ui.View):
             gw["participantes"].add(uid)
             await interaction.response.send_message(
                 "✅  ¡Estás participando en el sorteo! Buena suerte 🍀", ephemeral=True)
-        # Actualizar embed con contador
         embed = interaction.message.embeds[0]
         for i, field in enumerate(embed.fields):
             if "Participantes" in field.name:
@@ -1814,7 +1810,6 @@ class GiveawayModal(ui.Modal, title="NightMc  ·  Crear Sorteo"):
                              required=False)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Parsear duración
         import re
         raw = self.duracion.value.strip().lower()
         total_seconds = 0
@@ -1833,7 +1828,6 @@ class GiveawayModal(ui.Modal, title="NightMc  ·  Crear Sorteo"):
         except ValueError:
             num_ganadores = 1
 
-        # Texto de duración legible
         partes = []
         d, rem = divmod(total_seconds, 86400)
         h, rem = divmod(rem, 3600)
@@ -1867,7 +1861,6 @@ class GiveawayModal(ui.Modal, title="NightMc  ·  Crear Sorteo"):
             "guild_id":      interaction.guild.id,
         }
 
-        # Tarea que termina el sorteo automáticamente
         async def finalizar():
             await asyncio.sleep(total_seconds)
             gw = giveaways_activos.pop(msg.id, None)
@@ -1987,7 +1980,6 @@ async def avatar_slash(interaction: discord.Interaction, usuario: discord.Member
         f"> 🆔  `{target.id}`"
     )
     formats = []
-    base = target.display_avatar.url
     for fmt in ["png", "jpg", "webp"]:
         formats.append(f"[{fmt.upper()}]({target.display_avatar.with_format(fmt).url})")
     if target.display_avatar.is_animated():
@@ -2078,11 +2070,9 @@ async def serverinfo_slash(interaction: discord.Interaction):
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🔧  COMANDOS DE ADMIN — TESTING & MANTENIMIENTO
 # ╚═══════════════════════════════════════════════════════════════╝
-
 @bot.command(name="clearglobal")
 @commands.has_permissions(administrator=True)
 async def clearglobal(ctx):
-    """Elimina todos los slash commands globales duplicados."""
     await ctx.send("⏳  Limpiando comandos globales... (puede tardar ~15s por rate limit de Discord)")
     try:
         bot.tree.clear_commands(guild=None)
@@ -2094,7 +2084,6 @@ async def clearglobal(ctx):
 @bot.command(name="givexp")
 @commands.has_permissions(administrator=True)
 async def givexp(ctx, usuario: discord.Member = None, cantidad: int = 100):
-    """Da XP a un usuario. Uso: nm!givexp @usuario 500"""
     if not usuario:
         return await ctx.send("❌  Uso: `nm!givexp @usuario cantidad`")
     if cantidad <= 0:
@@ -2107,7 +2096,6 @@ async def givexp(ctx, usuario: discord.Member = None, cantidad: int = 100):
     u["xp"]    += cantidad
     u["nivel"]  = _nivel_desde_xp(u["xp"])
     _save_niveles(data)
-
 
     e = discord.Embed(color=0x2ecc71)
     e.set_author(name="NightMc Network  ✦  XP Añadido", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
@@ -2125,40 +2113,31 @@ async def givexp(ctx, usuario: discord.Member = None, cantidad: int = 100):
 @bot.command(name="removexp")
 @commands.has_permissions(administrator=True)
 async def removexp(ctx, usuario: discord.Member = None, cantidad: int = 100):
-    """Quita XP a un usuario. Uso: nm!removexp @usuario 500"""
     if not usuario:
         return await ctx.send("❌  Uso: `nm!removexp @usuario cantidad`")
-
     data = _load_niveles()
     u    = _get_user_xp(data, usuario.id)
-
     u["xp"]    = max(0, u["xp"] - cantidad)
     u["nivel"] = _nivel_desde_xp(u["xp"])
     _save_niveles(data)
-
     await ctx.send(f"🔻  Se quitaron **{cantidad} XP** a {usuario.mention}. Ahora tiene `{u['xp']} XP` (nivel `{u['nivel']}`).")
 
 @bot.command(name="setrank")
 @commands.has_permissions(administrator=True)
 async def setrank(ctx, usuario: discord.Member = None, nivel: int = 0):
-    """Establece el nivel de un usuario directamente. Uso: nm!setrank @usuario 10"""
     if not usuario:
         return await ctx.send("❌  Uso: `nm!setrank @usuario nivel`")
     if nivel < 0:
         return await ctx.send("❌  El nivel debe ser 0 o mayor.")
-
     data = _load_niveles()
     u    = _get_user_xp(data, usuario.id)
     u["xp"]    = _xp_para_nivel(nivel)
     u["nivel"] = nivel
     _save_niveles(data)
-
-    # Premio correspondiente a este nivel exacto
     premio_txt = ""
     if nivel in PREMIOS_NIVEL:
         rango, dur = PREMIOS_NIVEL[nivel]
         premio_txt = f"\n> 🎁  Premio de este nivel: **{rango}** por **{dur}**"
-
     e = discord.Embed(color=0x9b59b6)
     e.set_author(name="NightMc Network  ✦  Nivel Establecido", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
     e.description = (
@@ -2171,19 +2150,14 @@ async def setrank(ctx, usuario: discord.Member = None, nivel: int = 0):
 @bot.command(name="testpremio")
 @commands.has_permissions(administrator=True)
 async def testpremio(ctx, usuario: discord.Member = None, nivel: int = 25):
-    """Envía el DM de premio de un nivel específico. Uso: nm!testpremio @usuario 25"""
     if not usuario:
         return await ctx.send("❌  Uso: `nm!testpremio @usuario nivel`\nNiveles con premio: 25, 50, 75, 100")
     if nivel not in PREMIOS_NIVEL:
         niveles_str = ", ".join(str(n) for n in PREMIOS_NIVEL)
         return await ctx.send(f"❌  Ese nivel no tiene premio. Niveles disponibles: `{niveles_str}`")
-
     rango, duracion = PREMIOS_NIVEL[nivel]
     dm = discord.Embed(color=0xf1c40f)
-    dm.set_author(
-        name="NightMc Network  ✦  ¡Ganaste un premio!",
-        icon_url=ctx.guild.icon.url if ctx.guild.icon else None
-    )
+    dm.set_author(name="NightMc Network  ✦  ¡Ganaste un premio!", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
     dm.title = f"🎁  ¡Felicidades, @{usuario.name}!"
     dm.description = (
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -2193,21 +2167,14 @@ async def testpremio(ctx, usuario: discord.Member = None, nivel: int = 25):
     )
     dm.add_field(name="🏆  Rango",    value=f"> **{rango}**",    inline=True)
     dm.add_field(name="⏳  Duración", value=f"> **{duracion}**", inline=True)
-    dm.add_field(
-        name="📋  ¿Cómo reclamarlo?",
-        value=(
-            "> Abre un ticket en el servidor con el tipo\n"
-            "> **Rewards** y muestra este mensaje.\n"
-            "> El staff verificará tu nivel y te dará el rango."
-        ),
-        inline=False
-    )
+    dm.add_field(name="📋  ¿Cómo reclamarlo?", value=(
+        "> Abre un ticket en el servidor con el tipo\n"
+        "> **Rewards** y muestra este mensaje.\n"
+        "> El staff verificará tu nivel y te dará el rango."
+    ), inline=False)
     dm.set_thumbnail(url=usuario.display_avatar.url)
     dm.set_image(url=BANNER_URL)
-    dm.set_footer(
-        text="© Powered by NightMC  ✦  ¡Gracias por jugar!",
-        icon_url=ctx.guild.icon.url if ctx.guild.icon else None
-    )
+    dm.set_footer(text="© Powered by NightMC  ✦  ¡Gracias por jugar!", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
     try:
         await usuario.send(embed=dm)
         await ctx.send(f"✅  DM de premio enviado a {usuario.mention} *(nivel {nivel} — {rango})*")
@@ -2217,30 +2184,16 @@ async def testpremio(ctx, usuario: discord.Member = None, nivel: int = 25):
 @bot.command(name="resetxp")
 @commands.has_permissions(administrator=True)
 async def resetxp(ctx, usuario: discord.Member = None):
-    """Resetea el XP de un usuario a 0. Uso: nm!resetxp @usuario"""
     if not usuario:
         return await ctx.send("❌  Uso: `nm!resetxp @usuario`")
-
     data = _load_niveles()
     data[str(usuario.id)] = {"xp": 0, "nivel": 0, "mensajes": 0}
     _save_niveles(data)
-
     await ctx.send(f"🔄  XP de {usuario.mention} reseteado a 0.")
-
-# ╔═══════════════════════════════════════════════════════════════╗
-#   🚀  ARRANQUE
-# ╚═══════════════════════════════════════════════════════════════╝
-if not TOKEN:
-    print("\n❌  ERROR: No se encontró DISCORD_TOKEN")
-    print("   Railway → Variables → añade DISCORD_TOKEN\n")
-    exit(1)
-
-bot.run(TOKEN)
 
 @bot.command(name="resetxpall")
 @commands.has_permissions(administrator=True)
 async def resetxpall(ctx):
-    """Resetea el XP y nivel de TODOS los usuarios a 0. Requiere confirmación."""
     e = discord.Embed(color=COLOR_DANGER)
     e.set_author(name="NightMc Network  ✦  ⚠️  Confirmación requerida",
                  icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
@@ -2286,3 +2239,13 @@ async def resetxpall(ctx):
     )
     e2.set_footer(text=FOOTER, icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
     await ctx.send(embed=e2)
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   🚀  ARRANQUE
+# ╚═══════════════════════════════════════════════════════════════╝
+if not TOKEN:
+    print("\n❌  ERROR: No se encontró DISCORD_TOKEN")
+    print("   Railway → Variables → añade DISCORD_TOKEN\n")
+    exit(1)
+
+bot.run(TOKEN)
