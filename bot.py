@@ -1059,29 +1059,20 @@ async def transcript_slash(interaction: discord.Interaction):
             pass
 
 # ╔═══════════════════════════════════════════════════════════════╗
-#   🔄  /transfer — SLASH COMMAND (igual que el botón)
+#   🔄  /transfer — SLASH COMMAND (menú ephemeral en el ticket)
 # ╚═══════════════════════════════════════════════════════════════╝
 @bot.tree.command(name="transfer", description="Transfiere este ticket a otro equipo del staff")
-@discord.app_commands.describe(destino="Tipo de gestión a la que transferir el ticket")
-@discord.app_commands.choices(destino=[
-    discord.app_commands.Choice(name="🎖️  Ganadores de Eventos  (Head staff)",  value="ganadores-eventos"),
-    discord.app_commands.Choice(name="🔐  Unregister            (Head staff)",  value="unregister"),
-    discord.app_commands.Choice(name="💸  Reembolso             (Head staff)",  value="reembolso"),
-    discord.app_commands.Choice(name="🚨  Staff Report          (Head staff)",  value="staff-report"),
-    discord.app_commands.Choice(name="⚠️  Error de Config       (Head staff)",  value="error-config"),
-    discord.app_commands.Choice(name="💊  Revives               (High Staff)",  value="revives"),
-    discord.app_commands.Choice(name="✏️  Cambio de Nick        (High Staff)",  value="cambio-nick"),
-    discord.app_commands.Choice(name="🚨  Bug Crítico de Bot    (Head staff)",  value="bug-bot-critico"),
-    discord.app_commands.Choice(name="👁️  Ver Owner             (Head staff)",  value="ver-owner"),
-])
-async def transfer_slash(interaction: discord.Interaction, destino: str):
+async def transfer_slash(interaction: discord.Interaction):
     if not es_staff(interaction.user):
         if any(r.name == ROL_SOPORTE for r in interaction.user.roles):
             return await interaction.response.send_message(MSG_SIN_PERMISOS, ephemeral=True)
         return await interaction.response.send_message(ERR_NO_STAFF, ephemeral=True)
     owner_id = _get_owner_id_from_topic(interaction.channel)
-    await interaction.response.defer()
-    await ejecutar_transferencia(interaction, destino, owner_id)
+    await interaction.response.send_message(
+        embed=embed_transfer_menu(interaction.guild),
+        view=TransferView(owner_id=owner_id),
+        ephemeral=True
+    )
 
 def _get_rango(member: discord.Member) -> str:
     roles = [r.name for r in member.roles]
