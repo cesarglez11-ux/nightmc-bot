@@ -1195,7 +1195,7 @@ def _build_ip_embed():
     e.add_field(name="🟩  Bedrock",       value="> ⏳ **Próximamente...**",                       inline=True)
     e.add_field(name="\u200b", value="\u200b", inline=False)
     e.add_field(name="🎮  Modalidades",   value="> ⚔️  **ClashBox** — Disponible", inline=True)
-    e.add_field(name="🛒  Tienda",        value="> 💳  [nightmc-network.tebex.io](https://nightmc-network.tebex.io/)", inline=True)
+    e.add_field(name="🛒  Tienda",        value="> 💳  [tienda.nightmc.me](https://tienda.nightmc.me/)", inline=True)
     e.add_field(name="\u200b", value="\u200b", inline=False)
     e.add_field(name="🔗  Redes",         value="> 💬  [Discord](https://discord.gg/2r2byXBgsv)\n> 🔴  [YouTube](https://www.youtube.com/@NightMCNetwork-me)", inline=True)
     e.set_image(url="https://i.imgur.com/WxEp4MV.png")
