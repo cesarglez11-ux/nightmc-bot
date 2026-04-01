@@ -6,7 +6,7 @@
   ██║╚██╗██║██║██║   ██║██╔══██║   ██║   ██║╚██╔╝██║██║
   ██║ ╚████║██║╚██████╔╝██║  ██║   ██║   ██║ ╚═╝ ██║╚██████╗
   ╚═╝  ╚═══╝╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝ ╚═════╝
-                  Bot de Tickets — NightMc Network v2.2
+                  Bot de Tickets — NightMc Network v2.3
   Token  →  Railway › Variables › DISCORD_TOKEN
   Deploy →  Railway › Deployments › Redeploy
 ╚══════════════════════════════════════════════════════════════════╝
@@ -73,6 +73,8 @@ CAT_REWARDS      = "➢ REWARDS"
 CAT_BOTS         = "➢ SOPORTE BOTS"
 CAT_BOTS_HEAD    = "➢ ESCALACIÓN DE BOTS"
 CAT_TRANSFER     = "➢ TRANSFERIDOS"
+CAT_BUYCRAFT     = "➢ BUYCRAFT"           # ── NUEVO
+CAT_ROL_DC       = "➢ ROL DISCORD"        # ── NUEVO
 LOGS_CANAL       = "logs-tickets"
 
 CATEGORIAS_TICKET = {
@@ -84,6 +86,8 @@ CATEGORIAS_TICKET = {
     "alianza":      CAT_ALIANZA,
     "reward":       CAT_REWARDS,
     "bots":         CAT_BOTS,
+    "buycraft":     CAT_BUYCRAFT,          # ── NUEVO
+    "rol_discord":  CAT_ROL_DC,            # ── NUEVO
 }
 ROLES_TICKET = {
     "soporte":      (None,           True),
@@ -94,6 +98,8 @@ ROLES_TICKET = {
     "alianza":      ("Head staff",   False),
     "reward":       ("Low staff",    True),
     "bots":         ("Medium Staff", False),
+    "buycraft":     ("Head staff",   False),   # ── NUEVO — Head staff gestiona Buycraft
+    "rol_discord":  ("Medium Staff", True),    # ── NUEVO — Medium Staff gestiona roles DC
 }
 MSG_SIN_PERMISOS = "❌  Aún no tienes los suficientes permisos para responder en este ticket."
 TRANSFER_SUBS = {
@@ -105,7 +111,7 @@ TRANSFER_SUBS = {
     "revives":           ("High Staff", "➢ REVIVES",           "💊 Revives"),
     "cambio-nick":       ("High Staff", "➢ CAMBIO NICK",       "✏️ Cambio de Nick"),
     "bug-bot-critico":   ("Head staff", "➢ BUG BOT CRITICO",   "🚨 Bug Crítico de Bot"),
-    "ver-owner":         ("Head staff", "➢ VER OWNER",         "👁️ Ver Owner"),
+    "owner":             ("Owner",      "➢ OWNER",             "👑 Owner"),   # ── NUEVO — transfiere al Owner
 }
 STAFF_TEAM        = "Staff team"
 ROL_SOPORTE       = "| Soporte"
@@ -308,6 +314,59 @@ def embed_ticket_bots(guild, user, rol_tag, campos):
     e.set_image(url=BANNER_URL)
     return _footer(e, guild)
 
+# ══════════════════════════════════════════════════════════════════
+#   🛒  EMBED BUYCRAFT  (NUEVO)
+# ══════════════════════════════════════════════════════════════════
+def embed_ticket_buycraft(guild, user, rol_tag, campos):
+    e = discord.Embed(color=0x27ae60)
+    e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
+    e.title = "🛒  Soporte Buycraft — NightMC Network"
+    e.description = (
+        f"Buenas {user.mention}. Tu solicitud de Buycraft será atendida por {rol_tag}.\n"
+        f"Por favor adjunta toda la información para agilizar el proceso."
+    )
+    e.add_field(name=SEP, value="\u200b", inline=False)
+    e.add_field(name="👤  Staff responsable",  value=f"> {rol_tag}",                                    inline=False)
+    e.add_field(name="🎮  Nick de compra",     value=f"```{campos.get('Nick','—')}```",                 inline=True)
+    e.add_field(name="🧾  ID de transacción",  value=f"```{campos.get('ID transaccion','—')}```",       inline=True)
+    e.add_field(name="🛍️  Producto comprado",  value=f"```{campos.get('Producto','—')}```",             inline=False)
+    e.add_field(name="⚠️  Problema",           value=f"```{campos.get('Problema','—')}```",             inline=False)
+    e.add_field(name=SEP, value=(
+        "> 📧  El ID de transacción llega al correo con el que compraste.\n"
+        "> 📸  Adjunta captura del comprobante de pago si la tienes.\n"
+        "> ⚠️  Sin ID válido no se puede procesar la solicitud.\n"
+        "> 🙏  Gracias por apoyar a **NightMC Network** con tu compra."
+    ), inline=False)
+    e.set_thumbnail(url=user.display_avatar.url)
+    e.set_image(url=BANNER_URL)
+    return _footer(e, guild)
+
+# ══════════════════════════════════════════════════════════════════
+#   🏷️  EMBED ROL DISCORD TEMPORAL  (NUEVO)
+# ══════════════════════════════════════════════════════════════════
+def embed_ticket_rol_discord(guild, user, rol_tag, campos):
+    e = discord.Embed(color=0x9b59b6)
+    e.set_author(name="SISTEMA DE TICKETS — NIGHTMC", icon_url=guild.icon.url if guild.icon else None)
+    e.title = "🏷️  Rol de Discord Temporal — NightMC Network"
+    e.description = (
+        f"Buenas {user.mention}. Tu solicitud de rol temporal será atendida por {rol_tag}.\n"
+        f"El equipo verificará tu caso y asignará el rol correspondiente."
+    )
+    e.add_field(name=SEP, value="\u200b", inline=False)
+    e.add_field(name="👤  Staff responsable",  value=f"> {rol_tag}",                                     inline=False)
+    e.add_field(name="🎮  Nick en Minecraft",  value=f"```{campos.get('Nick','—')}```",                  inline=True)
+    e.add_field(name="🏷️  Rol solicitado",     value=f"```{campos.get('Rol','—')}```",                   inline=True)
+    e.add_field(name="⏳  Duración deseada",   value=f"```{campos.get('Duracion','—')}```",              inline=True)
+    e.add_field(name="💬  Motivo",             value=f"```{campos.get('Motivo','—')}```",                inline=False)
+    e.add_field(name=SEP, value=(
+        "> ⚠️  Los roles temporales se asignan según disponibilidad y criterio del staff.\n"
+        "> ⏳  Una vez vencido el tiempo, el rol será retirado automáticamente.\n"
+        "> 🙏  Gracias por contactar con el **Staff Team de NightMC Network**."
+    ), inline=False)
+    e.set_thumbnail(url=user.display_avatar.url)
+    e.set_image(url=BANNER_URL)
+    return _footer(e, guild)
+
 EMBED_TICKET = {
     "soporte":      embed_ticket_soporte,
     "reporte":      embed_ticket_reporte,
@@ -317,6 +376,8 @@ EMBED_TICKET = {
     "alianza":      embed_ticket_alianza,
     "reward":       embed_ticket_reward,
     "bots":         embed_ticket_bots,
+    "buycraft":     embed_ticket_buycraft,     # ── NUEVO
+    "rol_discord":  embed_ticket_rol_discord,  # ── NUEVO
 }
 
 def embed_claimed(user, guild):
@@ -369,8 +430,9 @@ def embed_transfer_menu(guild):
         "> 🤖  **Bug Crítico de Bot** — Error grave que afecta el funcionamiento\n"
         "> ⚙️  El caso será revisado por **Head staff** en canal exclusivo"
     ), inline=False)
-    e.add_field(name="👁️  Utilidades — Head staff", value=(
-        "> 👤  **Ver Owner** — Consulta quién abrió este ticket sin moverlo"
+    # ── NUEVO bloque Owner en el menú de transferencia ──
+    e.add_field(name="👑  Owner — Escalación Máxima", value=(
+        "> 👁️  **Owner** — Transfiere el ticket directamente al Owner del servidor"
     ), inline=False)
     e.add_field(name="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", value=(
         "> ⚠️  Solo transfiere si el caso **supera tus permisos**\n"
@@ -411,6 +473,8 @@ def embed_setup(guild):
         "┃  🤝  **Alianzas** — Propuestas de colaboración\n"
         "┃  🎁  **Rewards** — Premios por actividad, eventos\n"
         "┃  🤖  **Soporte de Bots** — Bugs o errores en los bots\n"
+        "┃  🛒  **Buycraft** — Problemas con compras en Buycraft\n"          # ── NUEVO
+        "┃  🏷️  **Rol Discord Temporal** — Solicitar un rol de Discord\n"   # ── NUEVO
         "\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     )
@@ -557,8 +621,6 @@ async def hacer_transcript(canal: discord.TextChannel) -> io.BytesIO:
     return io.BytesIO("".join(lineas).encode("utf-8"))
 
 async def rename_robusto(canal: discord.TextChannel, nuevo_nombre: str):
-    """Renombra respetando el rate-limit de Discord (2 por 10 min).
-    Si Discord devuelve 429 espera retry_after y reintenta sin perder el rename."""
     nuevo_nombre = nuevo_nombre[:50].lower().replace(" ", "-")
     if canal.name == nuevo_nombre:
         return True
@@ -765,7 +827,6 @@ class TicketControl(ui.View):
 #   🔄  LÓGICA COMPARTIDA DE TRANSFERENCIA
 # ╚═══════════════════════════════════════════════════════════════╝
 async def ejecutar_transferencia(interaction: discord.Interaction, destino: str, owner_id: int):
-    """Lógica central de transferencia — usada por el botón y el slash /transfer."""
     sub = TRANSFER_SUBS.get(destino)
     if not sub:
         await interaction.followup.send("❌ Subcategoría no encontrada.", ephemeral=True)
@@ -776,7 +837,6 @@ async def ejecutar_transferencia(interaction: discord.Interaction, destino: str,
     canal = interaction.channel
     guild = interaction.guild
 
-    # ── Crear o buscar la categoría destino ──────────────────────
     cat_t = discord.utils.get(guild.categories, name=cat_nombre)
     if not cat_t:
         nombre_cat = cat_nombre if cat_nombre.startswith("➢") else "➢ " + cat_nombre
@@ -791,7 +851,6 @@ async def ejecutar_transferencia(interaction: discord.Interaction, destino: str,
         except discord.Forbidden:
             cat_t = None
 
-    # ── Quitar permisos de staff anterior ─────────────────────────
     roles_quitar = [STAFF_TEAM] + [n for n, _ in ROLES_TICKET.values() if n]
     for target in list(canal.overwrites):
         if isinstance(target, discord.Role) and target.name in roles_quitar:
@@ -800,14 +859,13 @@ async def ejecutar_transferencia(interaction: discord.Interaction, destino: str,
             except discord.Forbidden:
                 pass
 
-    # ── Dar permisos al nuevo rol ─────────────────────────────────
     if rol_nuevo:
         try:
             await canal.set_permissions(rol_nuevo, read_messages=True, send_messages=True)
         except discord.Forbidden:
             pass
 
-    if not (nombre_rol in ["High Staff", "Head staff"]):
+    if not (nombre_rol in ["High Staff", "Head staff", "Owner"]):
         rol_solo_lectura = discord.utils.get(guild.roles, name=ROL_SOPORTE)
         if rol_solo_lectura:
             try:
@@ -815,7 +873,6 @@ async def ejecutar_transferencia(interaction: discord.Interaction, destino: str,
             except discord.Forbidden:
                 pass
 
-    # ── Mantener permisos del dueño del ticket ────────────────────
     if owner_id:
         owner = guild.get_member(owner_id)
         if owner:
@@ -824,14 +881,12 @@ async def ejecutar_transferencia(interaction: discord.Interaction, destino: str,
             except discord.Forbidden:
                 pass
 
-    # ── Mover canal a nueva categoría ────────────────────────────
     if cat_t and canal.category != cat_t:
         try:
             await canal.edit(category=cat_t, sync_permissions=False)
         except (discord.Forbidden, discord.HTTPException):
             pass
 
-    # ── Renombrar canal ───────────────────────────────────────────
     asyncio.create_task(rename_robusto(canal, destino + "-pendiente"))
 
     await resetear_claim_en_canal(canal, destino, owner_id)
@@ -873,8 +928,9 @@ class TransferView(ui.View):
                                     emoji="✏️", description="🔰 High staff — Cambiar nick vinculado"),
                 discord.SelectOption(label="Bug Critico de Bot", value="bug-bot-critico",
                                     emoji="🚨", description="👑 Head staff — Escalar problema grave de bot"),
-                discord.SelectOption(label="Ver Owner", value="ver-owner",
-                                    emoji="🔎", description="👑 Head staff — Ver quien abrio este ticket"),
+                # ── NUEVO ──
+                discord.SelectOption(label="Owner", value="owner",
+                                    emoji="👑", description="👑 Owner — Escalar al Owner del servidor"),
             ]
         )
         select.callback = self.select_callback
@@ -972,6 +1028,34 @@ class BotsModal(ui.Modal, title="NightMc  ·  Soporte de Bots"):
              "Problema": self.problema.value,
              "Reproducible": self.reproducible.value or "No especificado"}, "bots")
 
+# ══════════════════════════════════════════════════════════════════
+#   🛒  MODAL BUYCRAFT  (NUEVO)
+# ══════════════════════════════════════════════════════════════════
+class BuycraftModal(ui.Modal, title="NightMc  ·  Soporte Buycraft"):
+    nick         = ui.TextInput(label="Nick de compra",       placeholder="Nick con el que compraste")
+    id_trans     = ui.TextInput(label="ID de transacción",    placeholder="ID del correo de confirmación de Buycraft")
+    producto     = ui.TextInput(label="Producto comprado",    placeholder="¿Qué producto/rango compraste?")
+    problema     = ui.TextInput(label="Problema",             placeholder="Describe con detalle qué sucedió",
+                                style=discord.TextStyle.paragraph)
+    async def on_submit(self, i):
+        await crear_ticket(i, "buycraft",
+            {"Nick": self.nick.value, "ID transaccion": self.id_trans.value,
+             "Producto": self.producto.value, "Problema": self.problema.value}, "buycraft")
+
+# ══════════════════════════════════════════════════════════════════
+#   🏷️  MODAL ROL DISCORD TEMPORAL  (NUEVO)
+# ══════════════════════════════════════════════════════════════════
+class RolDiscordModal(ui.Modal, title="NightMc  ·  Rol Discord Temporal"):
+    nick     = ui.TextInput(label="Nick en Minecraft",  placeholder="Tu nick en Minecraft")
+    rol      = ui.TextInput(label="Rol que solicitas",  placeholder="¿Qué rol de Discord quieres?")
+    duracion = ui.TextInput(label="Duración deseada",   placeholder="Ej: 1 semana, 1 mes, permanente")
+    motivo   = ui.TextInput(label="Motivo",             placeholder="¿Por qué necesitas este rol?",
+                            style=discord.TextStyle.paragraph)
+    async def on_submit(self, i):
+        await crear_ticket(i, "rol_discord",
+            {"Nick": self.nick.value, "Rol": self.rol.value,
+             "Duracion": self.duracion.value, "Motivo": self.motivo.value}, "rol-discord")
+
 # ╔═══════════════════════════════════════════════════════════════╗
 #   🎡  MENÚ PRINCIPAL — Dropdown
 # ╚═══════════════════════════════════════════════════════════════╝
@@ -998,6 +1082,11 @@ class TicketLauncher(ui.View):
                        emoji="🎁", description="Premios por actividad en el servidor"),
                    discord.SelectOption(label="Soporte de Bots",      value="bots",
                        emoji="🤖", description="Bugs, errores o mal funcionamiento de bots"),
+                   # ── NUEVAS OPCIONES ──
+                   discord.SelectOption(label="Buycraft",             value="buycraft",
+                       emoji="🛒", description="Problemas con compras en Buycraft"),
+                   discord.SelectOption(label="Rol Discord Temporal", value="rol_discord",
+                       emoji="🏷️", description="Solicitar un rol temporal de Discord"),
                ])
     async def callback(self, interaction: discord.Interaction, select: ui.Select):
         modales = {
@@ -1009,6 +1098,8 @@ class TicketLauncher(ui.View):
             "alianza":      AlianzaModal(),
             "reward":       RewardModal(),
             "bots":         BotsModal(),
+            "buycraft":     BuycraftModal(),       # ── NUEVO
+            "rol_discord":  RolDiscordModal(),     # ── NUEVO
         }
         await interaction.response.send_modal(modales[select.values[0]])
 
@@ -1064,9 +1155,6 @@ async def transcript_slash(interaction: discord.Interaction):
         except Exception:
             pass
 
-# ╔═══════════════════════════════════════════════════════════════╗
-#   🔄  /transfer — SLASH COMMAND (menú ephemeral en el ticket)
-# ╚═══════════════════════════════════════════════════════════════╝
 @bot.tree.command(name="transfer", description="Transfiere este ticket a otro equipo del staff")
 async def transfer_slash(interaction: discord.Interaction):
     if not es_staff(interaction.user):
@@ -1389,7 +1477,6 @@ async def info_slash(interaction: discord.Interaction):
         f"> **Bot:** {bot.user.mention}\n"
         f"> **Servidores:** {len(bot.guilds)}\n"
         f"> **Latencia:** {round(bot.latency * 1000)}ms\n"
-        f"> **Prefijo:** `nm!`\n"
         f"> **Slash:** `/`"
     )
     e.set_footer(text=FOOTER)
@@ -2092,15 +2179,12 @@ async def givexp(ctx, usuario: discord.Member = None, cantidad: int = 100):
         return await ctx.send("❌  Uso: `nm!givexp @usuario cantidad`")
     if cantidad <= 0:
         return await ctx.send("❌  La cantidad debe ser mayor a 0.")
-
     data  = _load_niveles()
     u     = _get_user_xp(data, usuario.id)
     nivel_antes = u["nivel"]
-
     u["xp"]    += cantidad
     u["nivel"]  = _nivel_desde_xp(u["xp"])
     _save_niveles(data)
-
     e = discord.Embed(color=0x2ecc71)
     e.set_author(name="NightMc Network  ✦  XP Añadido", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
     e.description = (
